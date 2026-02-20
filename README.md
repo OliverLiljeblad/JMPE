@@ -2,6 +2,12 @@
 
 **JMPE** is a Java-based Mac Plus Emulator built by a team of college students.
 
+## Creators
+- Oliver
+- Jonatan
+- Clinton
+- Noel
+
 ## Goal
 Build a clean, modular emulator project that is easy to understand, test, and extend.
 
