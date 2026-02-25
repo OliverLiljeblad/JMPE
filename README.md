@@ -31,5 +31,11 @@ JMPE/
 - Pull requests for review
 - Small, testable commits
 
+## Resources
+- CPU
+  - https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf
+  - https://datasheets.chipdb.org/Motorola/68000/mc68000.pdf
+  - https://en.wikipedia.org/wiki/Motorola_68000#Instruction_set_details
+  - https://www.bitsavers.org/pdf/codata/05-0004-01_Codata_CPU_Board_Manual_Jul83.pdf
 ## License
 MIT (see `LICENSE`)
