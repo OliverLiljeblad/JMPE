@@ -11,6 +11,7 @@ public interface MemoryRegion {
     int readbit(int address);
     int read8(int address);
 
+    
     //DOCS: Reads a 16-bit big-endian 'word'
     // |DEFAULT: two byte reads. should be overridden in specific implementation
     default int read16(int address) {
