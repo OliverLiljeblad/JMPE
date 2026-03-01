@@ -175,7 +175,9 @@ JMPE/
 - Small, testable commits
 
 ## Resources
-- CPU
+- General
+  - https://en.wikipedia.org/wiki/Macintosh_Plus
+- CPU (Motorola 68000)
   - https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf
   - https://datasheets.chipdb.org/Motorola/68000/mc68000.pdf
   - https://en.wikipedia.org/wiki/Motorola_68000#Instruction_set_details
