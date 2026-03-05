@@ -8,6 +8,7 @@
 build/
 out/
 target/
+.gradle/
 
 # Logs
 *.log
