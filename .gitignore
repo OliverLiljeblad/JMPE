@@ -24,3 +24,9 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
+
+# ROM and disk images
+roms/*
+!roms/.gitkeep
+disks/*
+!disks/.gitkeep
