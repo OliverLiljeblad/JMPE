@@ -1,9 +1,14 @@
 plugins {
     id("java")
+    id("application")
 }
 
 group = "com.jmpe"
 version = "0.1"
+
+application {
+    mainClass.set("com.JMPE.Main")
+}
 
 repositories {
     mavenCentral()
