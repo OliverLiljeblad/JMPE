@@ -29,8 +29,10 @@ jobs:
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
 
-      # Wrapper JAR is currently not tracked in this repository, so CI uses system Gradle.
+      # Wrapper JAR is currently not tracked in this repository, so CI uses the pinned Gradle version.
       - name: Run tests
         run: gradle --no-daemon test
 
