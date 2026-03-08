@@ -30,12 +30,23 @@ public final class Sub {
         void write(int value);
     }
 
+    /**
+     * CCR mutator surface for SUB behavior.
+     * <p>
+     * SUB sets N, Z, V, C from the subtraction result, and also sets X (Extend) equal to C (Carry).
+     * CMP uses a separate code path and does NOT set X.
+     * </p>
+     */
+    public interface ConditionCodes extends Move.ConditionCodes {
+        void setExtend(boolean value);
+    }
+
     public static int execute(
         Move.Size size,
         SourceReader sourceReader,
         DestinationReader destinationReader,
         DestinationWriter destinationWriter,
-        Move.ConditionCodes conditionCodes
+        ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(sourceReader, "sourceReader must not be null");
@@ -56,7 +67,7 @@ public final class Sub {
         int destinationValue,
         int sourceValue,
         int result,
-        Move.ConditionCodes conditionCodes
+        ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(conditionCodes, "conditionCodes must not be null");
@@ -73,5 +84,7 @@ public final class Sub {
         conditionCodes.setZero(size.isZero(result));
         conditionCodes.setOverflow(overflow);
         conditionCodes.setCarry(carry);
+        // X (Extend) is set identical to C (Carry) for SUB
+        conditionCodes.setExtend(carry);
     }
 }
