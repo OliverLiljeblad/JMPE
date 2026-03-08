@@ -33,8 +33,5 @@ jobs:
           gradle-version: "9.3.1"
 
       # Wrapper JAR is currently not tracked in this repository, so CI uses the pinned Gradle version.
-      - name: Run tests
-        run: gradle --no-daemon test
-
       - name: Build project
         run: gradle --no-daemon build
