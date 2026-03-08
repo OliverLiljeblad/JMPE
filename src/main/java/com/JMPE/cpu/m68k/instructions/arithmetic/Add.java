@@ -30,12 +30,20 @@ public final class Add {
         void write(int value);
     }
 
+    /**
+     * Extends Move.ConditionCodes to include the X (Extend) flag, which ADD must set equal to carry.
+     * This mirrors the Addq.ConditionCodes pattern and is required for correct multi-precision arithmetic (e.g., ADDX).
+     */
+    public interface ConditionCodes extends Move.ConditionCodes {
+        void setExtend(boolean value);
+    }
+
     public static int execute(
             Move.Size size,
             SourceReader sourceReader,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(sourceReader, "sourceReader must not be null");
@@ -56,7 +64,7 @@ public final class Add {
             int sourceValue,
             int destinationValue,
             int result,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         boolean sourceNegative = size.isNegative(sourceValue);
         boolean destinationNegative = size.isNegative(destinationValue);
@@ -71,5 +79,6 @@ public final class Add {
         conditionCodes.setZero(size.isZero(result));
         conditionCodes.setOverflow(overflow);
         conditionCodes.setCarry(carry);
+        conditionCodes.setExtend(carry);
     }
 }
