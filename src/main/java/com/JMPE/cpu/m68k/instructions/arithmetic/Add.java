@@ -39,11 +39,11 @@ public final class Add {
     }
 
     public static int execute(
-            Move.Size size,
-            SourceReader sourceReader,
-            DestinationReader destinationReader,
-            DestinationWriter destinationWriter,
-            ConditionCodes conditionCodes
+        Move.Size size,
+        SourceReader sourceReader,
+        DestinationReader destinationReader,
+        DestinationWriter destinationWriter,
+        ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(sourceReader, "sourceReader must not be null");
@@ -60,11 +60,11 @@ public final class Add {
     }
 
     private static void updateConditionCodes(
-            Move.Size size,
-            int sourceValue,
-            int destinationValue,
-            int result,
-            ConditionCodes conditionCodes
+        Move.Size size,
+        int sourceValue,
+        int destinationValue,
+        int result,
+        ConditionCodes conditionCodes
     ) {
         boolean sourceNegative = size.isNegative(sourceValue);
         boolean destinationNegative = size.isNegative(destinationValue);

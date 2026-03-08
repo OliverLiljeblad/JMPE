@@ -39,7 +39,34 @@ public final class Cmp {
         int sourceValue = size.mask(sourceReader.read());
         int destinationValue = size.mask(destinationReader.read());
         int result = size.mask(destinationValue - sourceValue);
-        Sub.updateConditionCodes(size, destinationValue, sourceValue, result, conditionCodes);
+        updateConditionCodes(size, destinationValue, sourceValue, result, conditionCodes);
         return EXECUTION_CYCLES;
+    }
+
+    /**
+     * Updates N, Z, V, C flags for CMP.
+     * <p>
+     * CMP intentionally does NOT set X (Extend); that flag is only modified by SUB, SUBQ, SUBX, and similar.
+     * </p>
+     */
+    private static void updateConditionCodes(
+        Move.Size size,
+        int destinationValue,
+        int sourceValue,
+        int result,
+        Move.ConditionCodes conditionCodes
+    ) {
+        boolean sourceNegative = size.isNegative(sourceValue);
+        boolean destinationNegative = size.isNegative(destinationValue);
+        boolean resultNegative = size.isNegative(result);
+        long unsignedSource = Integer.toUnsignedLong(sourceValue);
+        long unsignedDestination = Integer.toUnsignedLong(destinationValue);
+        boolean carry = unsignedSource > unsignedDestination;
+        boolean overflow = (destinationNegative != sourceNegative) && (resultNegative != destinationNegative);
+
+        conditionCodes.setNegative(resultNegative);
+        conditionCodes.setZero(size.isZero(result));
+        conditionCodes.setOverflow(overflow);
+        conditionCodes.setCarry(carry);
     }
 }
