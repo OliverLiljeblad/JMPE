@@ -6,7 +6,7 @@ public final class EffectiveAddress {
         switch (mode) {
             case DATA_REGISTER_DIRECT -> return cpu.getDataRegister(register, size);
             case POST_INCREMENT -> return bus.read(cpu.getPostIncrementAddresingRegister(register, size), size);
-
+            default: return -1;
         }
     }
 }

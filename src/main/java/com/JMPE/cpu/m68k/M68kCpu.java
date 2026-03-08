@@ -1,6 +1,6 @@
 package com.JMPE.cpu.m68k;
 
-public class M68kCpu implements Resettable {
+public final class M68kCpu implements Resettable {
     private final Registers register;
     private final Bus bus;
     private final Decoder decoder;

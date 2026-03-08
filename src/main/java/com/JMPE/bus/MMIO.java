@@ -1,4 +1,4 @@
 package com.JMPE.bus;
 
-public class Mmio {
+public class MMIO {
 }
