@@ -1470,6 +1470,7 @@ public final class Decoder {
      * @return the word value, sign-extended to 32 bits
      */
     private static int readExtWord(Bus bus, int[] cursor) {
+        //TODO: Decide if this should propagate the exception or handle it here
         int value = bus.readWord(cursor[0]);
         cursor[0] += 2;
         return value;
