@@ -59,6 +59,8 @@ src/test/java/com/JMPE/
 - Motorola 68000 datasheet mirror: https://datasheets.chipdb.org/Motorola/68000/mc68000.pdf
 - 68000 instruction set overview: https://en.wikipedia.org/wiki/Motorola_68000#Instruction_set_details
 - Historical board manual: https://www.bitsavers.org/pdf/codata/05-0004-01_Codata_CPU_Board_Manual_Jul83.pdf
+- https://m680x0.github.io/doc/official-docs.html
+- https://web.njit.edu/~rosensta/classes/architecture/252software/code.pdf
 
 ## License
 MIT (see `LICENSE`)
