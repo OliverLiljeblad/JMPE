@@ -28,4 +28,25 @@ class RomTest {
         assertThrows(IndexOutOfBoundsException.class, () -> rom.readWord(0x0000_0003));
         assertThrows(UnsupportedOperationException.class, () -> rom.writeByte(0x0000_0000, 0xFF));
     }
+
+    @Test
+    void decodesResetVectors() {
+        Rom rom = new Rom(0x0040_0000, new byte[] {
+            0x00, 0x00, 0x20, 0x00,
+            0x00, 0x40, 0x01, 0x00
+        });
+
+        assertEquals(0x0000_2000, rom.initialSupervisorStackPointer());
+        assertEquals(0x0040_0100, rom.initialProgramCounter());
+    }
+
+    @Test
+    void rejectsResetVectorReadWhenRomIsTooSmall() {
+        Rom rom = new Rom(0x0000_0000, new byte[] {
+            (byte) 0xAA, (byte) 0xBB, (byte) 0xCC, (byte) 0xDD
+        });
+
+        assertThrows(IllegalStateException.class, rom::initialSupervisorStackPointer);
+        assertThrows(IllegalStateException.class, rom::initialProgramCounter);
+    }
 }

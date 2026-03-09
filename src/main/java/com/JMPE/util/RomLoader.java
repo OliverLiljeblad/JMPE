@@ -10,6 +10,7 @@ import java.nio.file.Path;
  */
 public final class RomLoader {
     private static final int MIN_RESET_VECTOR_BYTES = 8;
+    private static final int WORD_BYTES = 2;
 
     private RomLoader() {
     }
@@ -26,6 +27,12 @@ public final class RomLoader {
         if (bytes == null || bytes.length < MIN_RESET_VECTOR_BYTES) {
             throw new IllegalArgumentException(
                 "ROM must contain at least 8 bytes for initial SSP and PC vectors");
+        }
+        if ((bytes.length % WORD_BYTES) != 0) {
+            throw new IllegalArgumentException("ROM length must be even for 16-bit 68000 bus access");
+        }
+        if ((baseAddress & 1) != 0) {
+            throw new IllegalArgumentException("ROM base address must be word-aligned");
         }
         return new Rom(baseAddress, bytes);
     }

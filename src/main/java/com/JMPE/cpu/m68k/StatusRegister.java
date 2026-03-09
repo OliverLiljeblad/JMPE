@@ -1,5 +1,11 @@
 package com.JMPE.cpu.m68k;
 
+import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Addq;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Sub;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Subq;
+import com.JMPE.cpu.m68k.instructions.data.Move;
+
 /**
  * Motorola 68000 status register model.
  * <p>
@@ -12,9 +18,14 @@ public final class StatusRegister {
     private static final int ZERO_BIT = 2;
     private static final int NEGATIVE_BIT = 3;
     private static final int EXTEND_BIT = 4;
+    private static final int INTERRUPT_MASK_SHIFT = 8;
+    private static final int INTERRUPT_MASK_BITS = 0b111;
     private static final int SUPERVISOR_BIT = 13;
+    private static final int TRACE_BIT = 15;
 
     private int value;
+    private final ArithmeticConditionCodes arithmeticConditionCodes = new ArithmeticConditionCodes();
+    private final MoveConditionCodes moveConditionCodes = new MoveConditionCodes();
 
     public int rawValue() {
         return value & 0xFFFF;
@@ -30,6 +41,18 @@ public final class StatusRegister {
 
     public void setConditionCodeRegister(int ccr) {
         value = (rawValue() & 0xFF00) | (ccr & 0xFF);
+    }
+
+    public int interruptMask() {
+        return (rawValue() >>> INTERRUPT_MASK_SHIFT) & INTERRUPT_MASK_BITS;
+    }
+
+    public void setInterruptMask(int level) {
+        if (level < 0 || level > INTERRUPT_MASK_BITS) {
+            throw new IllegalArgumentException("interrupt mask level must be in range 0..7");
+        }
+        value = (rawValue() & ~(INTERRUPT_MASK_BITS << INTERRUPT_MASK_SHIFT))
+            | (level << INTERRUPT_MASK_SHIFT);
     }
 
     public boolean isCarrySet() {
@@ -78,6 +101,40 @@ public final class StatusRegister {
 
     public void setSupervisor(boolean set) {
         setBit(SUPERVISOR_BIT, set);
+    }
+
+    public boolean isTraceSet() {
+        return isBitSet(TRACE_BIT);
+    }
+
+    public void setTrace(boolean set) {
+        setBit(TRACE_BIT, set);
+    }
+
+    /**
+     * CCR adapter for MOVE/CMP-like helpers that only update N/Z/V/C.
+     */
+    public Move.ConditionCodes moveConditionCodes() {
+        return moveConditionCodes;
+    }
+
+    /**
+     * CCR adapter for arithmetic helpers that must also set X equal to carry/borrow.
+     */
+    public Add.ConditionCodes addConditionCodes() {
+        return arithmeticConditionCodes;
+    }
+
+    public Addq.ConditionCodes addqConditionCodes() {
+        return arithmeticConditionCodes;
+    }
+
+    public Sub.ConditionCodes subConditionCodes() {
+        return arithmeticConditionCodes;
+    }
+
+    public Subq.ConditionCodes subqConditionCodes() {
+        return arithmeticConditionCodes;
     }
 
     public void updateAddFlags(long source, long destination, long result, int bits) {
@@ -142,5 +199,55 @@ public final class StatusRegister {
             case 32 -> 0x8000_0000L;
             default -> throw new IllegalArgumentException("Unsupported operand width: " + bits);
         };
+    }
+
+    private final class MoveConditionCodes implements Move.ConditionCodes {
+        @Override
+        public void setNegative(boolean value) {
+            StatusRegister.this.setNegative(value);
+        }
+
+        @Override
+        public void setZero(boolean value) {
+            StatusRegister.this.setZero(value);
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            StatusRegister.this.setOverflow(value);
+        }
+
+        @Override
+        public void setCarry(boolean value) {
+            StatusRegister.this.setCarry(value);
+        }
+    }
+
+    private final class ArithmeticConditionCodes
+        implements Add.ConditionCodes, Addq.ConditionCodes, Sub.ConditionCodes, Subq.ConditionCodes {
+        @Override
+        public void setNegative(boolean value) {
+            StatusRegister.this.setNegative(value);
+        }
+
+        @Override
+        public void setZero(boolean value) {
+            StatusRegister.this.setZero(value);
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            StatusRegister.this.setOverflow(value);
+        }
+
+        @Override
+        public void setCarry(boolean value) {
+            StatusRegister.this.setCarry(value);
+        }
+
+        @Override
+        public void setExtend(boolean value) {
+            StatusRegister.this.setExtend(value);
+        }
     }
 }

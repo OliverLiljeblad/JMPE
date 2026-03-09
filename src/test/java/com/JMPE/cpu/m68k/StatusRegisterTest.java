@@ -1,9 +1,12 @@
 package com.JMPE.cpu.m68k;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
+import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
 class StatusRegisterTest {
@@ -65,5 +68,60 @@ class StatusRegisterTest {
         StatusRegister sr = new StatusRegister();
         assertThrows(IllegalArgumentException.class, () -> sr.updateAddFlags(1, 1, 2, 24));
         assertThrows(IllegalArgumentException.class, () -> sr.updateSubFlags(1, 1, 0, 64));
+    }
+
+    @Test
+    void writesInterruptMaskAndTraceBit() {
+        StatusRegister sr = new StatusRegister();
+
+        sr.setInterruptMask(7);
+        sr.setTrace(true);
+
+        assertEquals(7, sr.interruptMask());
+        assertTrue(sr.isTraceSet());
+        assertThrows(IllegalArgumentException.class, () -> sr.setInterruptMask(8));
+    }
+
+    @Test
+    void ccrWritePreservesUpperStatusBits() {
+        StatusRegister sr = new StatusRegister();
+        sr.setInterruptMask(5);
+        sr.setSupervisor(true);
+        sr.setConditionCodeRegister(0x001F);
+
+        assertEquals(5, sr.interruptMask());
+        assertTrue(sr.isSupervisorSet());
+        assertEquals(0x1F, sr.conditionCodeRegister());
+    }
+
+    @Test
+    void moveConditionCodesAdapterUpdatesNzvcWithoutTouchingX() {
+        StatusRegister sr = new StatusRegister();
+        sr.setExtend(true);
+
+        Move.updateConditionCodes(0x00, Move.Size.BYTE, sr.moveConditionCodes());
+
+        assertTrue(sr.isZeroSet());
+        assertFalse(sr.isNegativeSet());
+        assertFalse(sr.isOverflowSet());
+        assertFalse(sr.isCarrySet());
+        assertTrue(sr.isExtendSet());
+    }
+
+    @Test
+    void arithmeticConditionCodesAdapterSetsExtendWithCarry() {
+        StatusRegister sr = new StatusRegister();
+        Add.execute(
+            Move.Size.BYTE,
+            () -> 0x01,
+            () -> 0xFF,
+            ignored -> {
+            },
+            sr.addConditionCodes()
+        );
+
+        assertTrue(sr.isCarrySet());
+        assertTrue(sr.isExtendSet());
+        assertTrue(sr.isZeroSet());
     }
 }

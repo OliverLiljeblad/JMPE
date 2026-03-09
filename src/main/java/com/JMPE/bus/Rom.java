@@ -8,6 +8,10 @@ import java.util.Arrays;
  * ROM bytes are immutable after construction so accidental writes fail fast.
  */
 public final class Rom {
+    private static final int RESET_STACK_POINTER_OFFSET = 0;
+    private static final int RESET_PROGRAM_COUNTER_OFFSET = 4;
+    private static final int RESET_VECTOR_BYTES = 8;
+
     private final int baseAddress;
     private final byte[] bytes;
 
@@ -51,6 +55,22 @@ public final class Rom {
     }
 
     /**
+     * Reads the initial supervisor stack pointer from vector table offset 0x000000.
+     */
+    public int initialSupervisorStackPointer() {
+        ensureHasResetVectors();
+        return (int) readLong(baseAddress + RESET_STACK_POINTER_OFFSET);
+    }
+
+    /**
+     * Reads the initial program counter from vector table offset 0x000004.
+     */
+    public int initialProgramCounter() {
+        ensureHasResetVectors();
+        return (int) readLong(baseAddress + RESET_PROGRAM_COUNTER_OFFSET);
+    }
+
+    /**
      * ROM is immutable by design; writes should be routed to RAM/MMIO regions instead.
      */
     public void writeByte(int address, int value) {
@@ -70,5 +90,11 @@ public final class Rom {
                 "ROM access out of bounds at address 0x" + Integer.toHexString(address));
         }
         return (int) start;
+    }
+
+    private void ensureHasResetVectors() {
+        if (bytes.length < RESET_VECTOR_BYTES) {
+            throw new IllegalStateException("ROM must contain at least 8 bytes for reset vectors");
+        }
     }
 }

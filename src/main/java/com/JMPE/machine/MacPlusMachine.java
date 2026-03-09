@@ -24,6 +24,7 @@ public final class MacPlusMachine {
         }
         this.rom = rom;
         this.cpu = cpu;
+        this.cpu.resetFromRom(rom);
     }
 
     public static MacPlusMachine fromRomBytes(byte[] romBytes, int baseAddress) {
