@@ -1,6 +1,6 @@
 package com.JMPE.bus;
 
-import com.JMPE.cpu.m68k.exceptions.AddressErrorException;
+import com.JMPE.cpu.m68k.exceptions.AddressAlignmentException;
 import com.JMPE.cpu.m68k.exceptions.BusErrorException;
 
 /**
@@ -39,7 +39,7 @@ import com.JMPE.cpu.m68k.exceptions.BusErrorException;
  * The 68000 requires that word and long accesses use even addresses.
  * Accessing an odd address for a word or long read/write causes the
  * {@code AddressSpace} implementation to throw
- * {@link AddressErrorException}, which the CPU routes to the 68000
+ * {@link AddressAlignmentException}, which the CPU routes to the 68000
  * Address Error exception vector.  Callers need not pre-check alignment.
  *
  * <p>An access to an unmapped region throws {@link BusErrorException},
@@ -71,20 +71,20 @@ public interface Bus {
      *
      * @param address the bus address; must be even
      * @return the word value in bits [15:0]
-     * @throws AddressErrorException if {@code address} is odd
+     * @throws AddressAlignmentException if {@code address} is odd
      * @throws BusErrorException     if the address is unmapped
      */
-    int readWord(int address) throws BusErrorException, AddressErrorException;
+    int readWord(int address) throws BusErrorException, AddressAlignmentException;
 
     /**
      * Reads one big-endian long word (4 bytes) at {@code address}.
      *
      * @param address the bus address; must be even
      * @return the 32-bit value
-     * @throws AddressErrorException if {@code address} is odd
+     * @throws AddressAlignmentException if {@code address} is odd
      * @throws BusErrorException     if the address is unmapped
      */
-    int readLong(int address) throws BusErrorException, AddressErrorException;
+    int readLong(int address) throws BusErrorException, AddressAlignmentException;
 
     // -------------------------------------------------------------------------
     // Writes
@@ -105,20 +105,20 @@ public interface Bus {
      *
      * @param address the bus address; must be even
      * @param value   only bits [15:0] are written; upper bits are ignored
-     * @throws AddressErrorException if {@code address} is odd
+     * @throws AddressAlignmentException if {@code address} is odd
      * @throws BusErrorException     if the address is unmapped
      */
-    void writeWord(int address, int value) throws BusErrorException, AddressErrorException;
+    void writeWord(int address, int value) throws BusErrorException, AddressAlignmentException;
 
     /**
      * Writes all 32 bits of {@code value} as a big-endian long word to
      * {@code address}.
      *
      * @param address the bus address; must be even
-     * @throws AddressErrorException if {@code address} is odd
+     * @throws AddressAlignmentException if {@code address} is odd
      * @throws BusErrorException     if the address is unmapped
      */
-    void writeLong(int address, int value) throws AddressErrorException, BusErrorException;
+    void writeLong(int address, int value) throws AddressAlignmentException, BusErrorException;
 
     // -------------------------------------------------------------------------
     // Default helpers — convenience wrappers used by executors
@@ -136,7 +136,7 @@ public interface Bus {
      * Reads one word and sign-extends it to 32 bits.
      * Equivalent to {@code (short) readWord(address)}.
      */
-    default int readWordSigned(int address) throws AddressErrorException, BusErrorException {
+    default int readWordSigned(int address) throws AddressAlignmentException, BusErrorException {
         return (short) readWord(address);
     }
 }

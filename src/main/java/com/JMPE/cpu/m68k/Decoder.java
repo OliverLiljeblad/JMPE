@@ -1,6 +1,8 @@
 package com.JMPE.cpu.m68k;
 
 import com.JMPE.bus.Bus;
+import com.JMPE.cpu.m68k.exceptions.AddressAlignmentException;
+import com.JMPE.cpu.m68k.exceptions.BusErrorException;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;

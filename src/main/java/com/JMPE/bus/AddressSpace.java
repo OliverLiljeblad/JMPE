@@ -1,6 +1,6 @@
 package com.JMPE.bus;
 
-import com.JMPE.cpu.m68k.exceptions.AddressErrorException;
+import com.JMPE.cpu.m68k.exceptions.AddressAlignmentException;
 import com.JMPE.cpu.m68k.exceptions.BusErrorException;
 import com.JMPE.machine.MacPlusMachine;
 
@@ -88,13 +88,13 @@ public final class AddressSpace implements Bus {
     @Override
     public int readByte(int address) throws BusErrorException {
         int addr = address & ADDRESS_MASK;
-        return regionAt(addr).readByte(addr - regionAt(addr).base());
         // Note: two calls to regionAt — inlined below for clarity; a hot JIT
         // will inline and eliminate the double lookup.
+        return regionAt(addr).readByte(addr - regionAt(addr).base());
     }
 
     @Override
-    public int readWord(int address) throws BusErrorException, AddressErrorException {
+    public int readWord(int address) throws BusErrorException, AddressAlignmentException {
         int addr = address & ADDRESS_MASK;
         checkAlignment(addr, address);
         MemoryRegion r = regionAt(addr);
@@ -102,7 +102,7 @@ public final class AddressSpace implements Bus {
     }
 
     @Override
-    public int readLong(int address) throws BusErrorException, AddressErrorException {
+    public int readLong(int address) throws BusErrorException, AddressAlignmentException {
         int addr = address & ADDRESS_MASK;
         checkAlignment(addr, address);
         MemoryRegion r = regionAt(addr);
@@ -121,7 +121,7 @@ public final class AddressSpace implements Bus {
     }
 
     @Override
-    public void writeWord(int address, int value) throws BusErrorException, AddressErrorException {
+    public void writeWord(int address, int value) throws BusErrorException, AddressAlignmentException {
         int addr = address & ADDRESS_MASK;
         checkAlignment(addr, address);
         MemoryRegion r = regionAt(addr);
@@ -129,7 +129,7 @@ public final class AddressSpace implements Bus {
     }
 
     @Override
-    public void writeLong(int address, int value) throws AddressErrorException, BusErrorException {
+    public void writeLong(int address, int value) throws AddressAlignmentException, BusErrorException {
         int addr = address & ADDRESS_MASK;
         checkAlignment(addr, address);
         MemoryRegion r = regionAt(addr);
@@ -155,14 +155,14 @@ public final class AddressSpace implements Bus {
 
     /**
      * Checks that {@code addr} is word-aligned (even).  If not, throws
-     * {@link AddressErrorException}.
+     * {@link AddressAlignmentException}.
      *
      * @param addr    the 24-bit masked address being accessed
      * @param rawAddr the original address before masking, for the error report
      */
-    private static void checkAlignment(int addr, int rawAddr) throws AddressErrorException {
+    private static void checkAlignment(int addr, int rawAddr) throws AddressAlignmentException {
         if ((addr & 1) != 0) {
-            throw new AddressErrorException(rawAddr);
+            throw new AddressAlignmentException(rawAddr);
         }
     }
 }
