@@ -81,7 +81,7 @@ public final class Decoder {
      *         any valid instruction. The caller (M68kCpu) is expected to catch
      *         this and route it through {@link com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher}.
      */
-    public DecodedInstruction decode(int opword, Bus bus, int extPc) throws IllegalInstructionException {
+    public DecodedInstruction decode(int opword, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         // The top 4 bits (bits 15:12) identify one of 16 instruction families.
         // This is the most reliable and uniform first-level split in the 68k
         // encoding — every instruction belongs to exactly one line.
@@ -152,7 +152,7 @@ public final class Decoder {
      * registers are not addressable by bit ops on the 68000), so Motorola
      * used it as the MOVEP distinguisher without ambiguity.
      */
-    private DecodedInstruction decodeLine0(int op, Bus bus, int extPc) throws IllegalInstructionException {
+    private DecodedInstruction decodeLine0(int op, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         int[] cursor = {extPc};
 
         if ((op & 0x0100) != 0) {
@@ -218,7 +218,7 @@ public final class Decoder {
      * </pre>
      * Extension words: one signed 16-bit displacement.
      */
-    private static DecodedInstruction decodeMovep(int op, Bus bus, int[] cursor) {
+    private static DecodedInstruction decodeMovep(int op, Bus bus, int[] cursor) throws AddressAlignmentException, BusErrorException {
         int     dn        = regX(op);                    // bits 11:9
         int     an        = regY(op);                    // bits 2:0
         boolean toMemory  = (op & 0x0080) != 0;         // bit 7: direction
@@ -268,7 +268,7 @@ public final class Decoder {
      * we know the EA mode at decode time, we set size here rather than deferring
      * to the executor — this keeps the executor free of EA-type inspection.
      */
-    private static DecodedInstruction decodeDynamicBitOp(int op, Bus bus, int[] cursor) throws IllegalInstructionException {
+    private static DecodedInstruction decodeDynamicBitOp(int op, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         int bitRegNum = regX(op);              // bits 11:9 — the bit-number register
         int bitOp     = (op >>> 6) & 0x3;     // bits 7:6 — which bit operation
         int mode      = eaMode(op);            // bits 5:3
@@ -315,7 +315,7 @@ public final class Decoder {
      * so the executor can treat dynamic and static bit ops identically once the
      * bit number has been resolved to an integer.
      */
-    private static DecodedInstruction decodeStaticBitOp(int op, Bus bus, int[] cursor) throws IllegalInstructionException {
+    private static DecodedInstruction decodeStaticBitOp(int op, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         // Read the bit number from the first extension word.
         // Per the M68000 spec, only bits 7:0 are the bit number; bits 15:8
         // must be zero. We mask them without validating — if the ROM is wrong
@@ -376,7 +376,7 @@ public final class Decoder {
      * @param hasCcrSrVariants true for ORI/ANDI/EORI; false for SUBI/ADDI/CMPI
      */
     private static DecodedInstruction decodeImmediateGroup(
-        Opcode baseOpcode, int op, Bus bus, int[] cursor, boolean hasCcrSrVariants) throws IllegalInstructionException {
+        Opcode baseOpcode, int op, Bus bus, int[] cursor, boolean hasCcrSrVariants) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
 
         int opwordAddr = cursor[0] - 2;    // save for error reporting before cursor moves
 
@@ -490,7 +490,7 @@ public final class Decoder {
      * <p>Delegates entirely to {@link #decodeMove}. The size is fixed to BYTE
      * by the line number itself — there is nothing else to decide here.
      */
-    private DecodedInstruction decodeLine1(int op, Bus bus, int extPc) throws IllegalInstructionException {
+    private DecodedInstruction decodeLine1(int op, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         return decodeMove(Size.BYTE, op, bus, new int[]{extPc});
     }
 
@@ -504,7 +504,7 @@ public final class Decoder {
      * handles it transparently by treating the line number as the size selector
      * rather than decoding a size field within the opword.
      */
-    private DecodedInstruction decodeLine2(int op, Bus bus, int extPc) throws IllegalInstructionException {
+    private DecodedInstruction decodeLine2(int op, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         return decodeMove(Size.LONG, op, bus, new int[]{extPc});
     }
 
@@ -512,7 +512,7 @@ public final class Decoder {
      * Line 3 (0011): MOVE.W — word-sized move. See {@link #decodeLine2} for
      * a note on the non-obvious size encoding.
      */
-    private DecodedInstruction decodeLine3(int op, Bus bus, int extPc) throws IllegalInstructionException {
+    private DecodedInstruction decodeLine3(int op, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         return decodeMove(Size.WORD, op, bus, new int[]{extPc});
     }
 
@@ -587,7 +587,7 @@ public final class Decoder {
      * @param cursor the instruction-stream read cursor; updated in place
      */
     private static DecodedInstruction decodeMove(
-        Size size, int op, Bus bus, int[] cursor) throws IllegalInstructionException {
+        Size size, int op, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
 
         int opwordAddr = cursor[0] - 2;
 
@@ -680,7 +680,7 @@ public final class Decoder {
      * (data-register direct).  EXT and SWAP target only data registers; MOVEM
      * and PEA target only memory — the hardware and the decoder agree.
      */
-    private DecodedInstruction decodeLine4(int op, Bus bus, int extPc) throws IllegalInstructionException {
+    private DecodedInstruction decodeLine4(int op, Bus bus, int extPc) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         int[] cursor = {extPc};
         int   opAddr = extPc - 2;
         int   sz     = sizeBits(op);   // bits 7:6 — used throughout
@@ -898,7 +898,7 @@ public final class Decoder {
      *    2:0  = EA register
      * </pre>
      */
-    private static DecodedInstruction decodeChk(int op, Bus bus, int[] cursor) throws IllegalInstructionException {
+    private static DecodedInstruction decodeChk(int op, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         int dn = regX(op);   // bits 11:9 — register being checked against bound
         EffectiveAddress bound = decodeEa(eaMode(op), regY(op), Size.WORD, bus, cursor);
         // src = the upper-bound operand; dst = the register being tested
@@ -924,7 +924,7 @@ public final class Decoder {
      *    2:0  = EA register
      * </pre>
      */
-    private static DecodedInstruction decodeLea(int op, Bus bus, int[] cursor) throws IllegalInstructionException {
+    private static DecodedInstruction decodeLea(int op, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         int an = regX(op);   // bits 11:9 — destination address register
         EffectiveAddress src = decodeEa(eaMode(op), regY(op), Size.LONG, bus, cursor);
         return new DecodedInstruction(
@@ -955,7 +955,7 @@ public final class Decoder {
      * @param opcode the specific opcode (NEGX, CLR, NEG, NOT, or TST)
      */
     private static DecodedInstruction decodeUnaryEa(
-        Opcode opcode, int op, Bus bus, int[] cursor, int opAddr) throws IllegalInstructionException {
+        Opcode opcode, int op, Bus bus, int[] cursor, int opAddr) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         Size size = decodeSize(sizeBits(op), op, opAddr);
         EffectiveAddress ea = decodeEa(eaMode(op), regY(op), size, bus, cursor);
         return new DecodedInstruction(
@@ -1003,7 +1003,7 @@ public final class Decoder {
      *                 {@code false} for register→memory (store)
      */
     private static DecodedInstruction decodeMovem(
-        int op, Size size, boolean memToReg, Bus bus, int[] cursor) throws IllegalInstructionException {
+        int op, Size size, boolean memToReg, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
         // Register list mask is always the first extension word.
         // We read it unsigned — all 16 bits are significant.
         int mask = readExtWordUnsigned(bus, cursor);
@@ -1053,7 +1053,7 @@ public final class Decoder {
      * bit 3 = 1 → {@code MOVE USP,An} ({@link Opcode#MOVE_FROM_USP}).
      */
     private static DecodedInstruction decodeLine4MiscGroup(
-        int op, Bus bus, int[] cursor, int opAddr) throws IllegalInstructionException {
+        int op, Bus bus, int[] cursor, int opAddr) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
 
         int sz = sizeBits(op);   // bits 7:6 act as the coarse key here
 
@@ -1471,7 +1471,7 @@ public final class Decoder {
      *               updated in place to point past the word just read
      * @return the word value, sign-extended to 32 bits
      */
-    private static int readExtWord(Bus bus, int[] cursor) {
+    private static int readExtWord(Bus bus, int[] cursor) throws AddressAlignmentException, BusErrorException {
         //TODO: Decide if this should propagate the exception or handle it here
         int value = bus.readWord(cursor[0]);
         cursor[0] += 2;
@@ -1483,7 +1483,7 @@ public final class Decoder {
      * 32-bit value. Used for absolute-short addresses, which are sign-extended
      * by the hardware but treated as addresses in the full 24-bit space.
      */
-    private static int readExtWordUnsigned(Bus bus, int[] cursor) {
+    private static int readExtWordUnsigned(Bus bus, int[] cursor) throws AddressAlignmentException, BusErrorException {
         return readExtWord(bus, cursor) & 0xFFFF;
     }
 
@@ -1491,7 +1491,7 @@ public final class Decoder {
      * Reads two consecutive words forming a 32-bit long value (big-endian,
      * high word first). Advances the cursor by 4.
      */
-    private static int readExtLong(Bus bus, int[] cursor) {
+    private static int readExtLong(Bus bus, int[] cursor) throws AddressAlignmentException, BusErrorException {
         int hi = readExtWord(bus, cursor);
         int lo = readExtWord(bus, cursor);
         return (hi << 16) | (lo & 0xFFFF);
@@ -1509,7 +1509,7 @@ public final class Decoder {
      * per the 68000 spec. We do not validate this — garbage in the high byte
      * is the ROM's problem, not the decoder's.
      */
-    private static int readImmediate(Size size, Bus bus, int[] cursor) {
+    private static int readImmediate(Size size, Bus bus, int[] cursor) throws AddressAlignmentException, BusErrorException {
         return switch (size) {
             case BYTE -> readExtWord(bus, cursor) & 0xFF;
             case WORD -> readExtWord(bus, cursor) & 0xFFFF;
@@ -1552,7 +1552,7 @@ public final class Decoder {
      * @return a descriptor for the effective address
      */
     private static EffectiveAddress decodeEa(
-        int mode, int reg, Size size, Bus bus, int[] cursor) throws IllegalInstructionException {
+        int mode, int reg, Size size, Bus bus, int[] cursor) throws IllegalInstructionException, AddressAlignmentException, BusErrorException {
 
         return switch (mode) {
             case 0b000 -> EffectiveAddress.dataReg(reg);
