@@ -1262,9 +1262,9 @@ public final class Decoder {
      * <p>Bit 8 = 1 and bits 5:3 = 001 → CMPM (memory-to-memory compare).
      * Bits 7:6 = 11 → CMPA. Bit 8 = 1 (and not CMPM) → EOR. Bit 8 = 0 → CMP.
      */
-    private DecodedInstruction decodeLineB(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLineB(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        // Currently unimplemented: report as illegal instead of crashing with RuntimeException.
+        throw new IllegalInstructionException(String.format("Unimplemented Line B instruction: 0x%04X", op & 0xFFFF));
     }
 
     /**
