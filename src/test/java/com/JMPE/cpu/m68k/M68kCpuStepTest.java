@@ -31,8 +31,10 @@ class M68kCpuStepTest {
         assertEquals(0x0000_1002, report.after().programCounter());
         assertEquals(0x1234_5678, report.after().dataRegister(0));
         assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertEquals(4, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=NOP"));
+        assertTrue(logs.get(0).contains("cycles=4"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 
