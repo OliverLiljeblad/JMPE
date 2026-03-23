@@ -26,8 +26,7 @@ public class MoveQ_Test {
                 () -> assertTrue(conditionCodes.negative),
                 () -> assertFalse(conditionCodes.zero),
                 () -> assertFalse(conditionCodes.overflow),
-                () -> assertFalse(conditionCodes.carry),
-                () -> assertTrue(conditionCodes.externalXState)
+                () -> assertFalse(conditionCodes.carry)
         );
     }
 
@@ -91,7 +90,6 @@ public class MoveQ_Test {
         private boolean zero;
         private boolean overflow;
         private boolean carry;
-        private boolean externalXState = true;
 
         @Override
         public void setNegative(boolean value) {
