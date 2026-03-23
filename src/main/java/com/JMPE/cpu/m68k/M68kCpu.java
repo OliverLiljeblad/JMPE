@@ -1,6 +1,11 @@
 package com.JMPE.cpu.m68k;
 
+import com.JMPE.bus.Bus;
 import com.JMPE.bus.Rom;
+import com.JMPE.cpu.m68k.dispatch.DispatchTable;
+import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
+import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -9,6 +14,7 @@ import java.util.function.Consumer;
  * Minimal CPU shell used to wire core components during early emulator milestones.
  */
 public final class M68kCpu {
+    private static final Decoder DECODER = new Decoder();
     private static final int RESET_INTERRUPT_MASK = 7;
 
     private final Registers registers;
@@ -60,6 +66,73 @@ public final class M68kCpu {
         statusRegister.setSupervisor(true);
         statusRegister.setTrace(false);
         statusRegister.setInterruptMask(RESET_INTERRUPT_MASK);
+    }
+
+    /**
+     * Executes one real CPU step through fetch, decode, dispatch, and execute.
+     *
+     * <p>
+     * This is the first non-placeholder execution path in the CPU core. The
+     * method performs the architecturally visible instruction fetch, asks the
+     * stateless {@link Decoder} to decode the fetched opword plus any extension
+     * words, advances PC to {@link DecodedInstruction#nextPc()} once decode
+     * succeeds, and then dispatches to the registered {@link Op} handler for
+     * the decoded opcode.
+     * </p>
+     *
+     * <p>
+     * PC is advanced before the handler runs. This matches the decoder's
+     * contract: by the time execution begins, the instruction stream has
+     * already consumed the opword and all extension words. Instructions that
+     * change control flow later (for example {@code BRA} or {@code RTS}) can
+     * still overwrite PC during execution.
+     * </p>
+     *
+     * @param bus the system bus used for opword fetch and decoder extension-word reads
+     * @param dispatchTable the opcode-to-handler registry for execution
+     * @param reporter sink for one step log line
+     * @return the before/after state report for this step
+     * @throws IllegalInstructionException if decode fails for the fetched opword
+     */
+    public StepReport step(Bus bus,
+                           DispatchTable dispatchTable,
+                           Consumer<String> reporter) throws IllegalInstructionException {
+        Objects.requireNonNull(bus, "bus must not be null");
+        Objects.requireNonNull(dispatchTable, "dispatchTable must not be null");
+        Objects.requireNonNull(reporter, "reporter must not be null");
+
+        StepSnapshot before = StepSnapshot.capture(registers, statusRegister);
+        int opword = bus.readWord(registers.programCounter());
+        String instructionName = String.format("0x%04X", opword & 0xFFFF);
+
+        try {
+            DecodedInstruction decoded = DECODER.decode(opword, bus, registers.programCounter() + 2);
+            instructionName = decoded.opcode().name();
+
+            registers.setProgramCounter(decoded.nextPc());
+            Op handler = dispatchTable.lookup(decoded.opcode());
+            handler.execute(this, decoded);
+
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.success(instructionName, before, after);
+            reporter.accept(report.toLogLine());
+            return report;
+        } catch (IllegalInstructionException | RuntimeException exception) {
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.failure(instructionName, before, after, exception.getMessage());
+            reporter.accept(report.toLogLine());
+            throw exception;
+        }
+    }
+
+    public StepReport step(Bus bus, DispatchTable dispatchTable) throws IllegalInstructionException {
+        return step(bus, dispatchTable, ignored -> {
+        });
+    }
+
+    public StepReport stepWithConsoleReport(Bus bus,
+                                            DispatchTable dispatchTable) throws IllegalInstructionException {
+        return step(bus, dispatchTable, System.out::println);
     }
 
     /**

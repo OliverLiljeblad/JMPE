@@ -22,6 +22,14 @@ gradle --no-daemon test
 gradle --no-daemon build
 ```
 
+## Helpful trace command
+To see the current end-to-end `NOP` fetch/decode/dispatch/execute flow with only
+the important trace lines:
+
+```bash
+./tools/nop-trace.sh
+```
+
 ## Project layout
 ```text
 src/main/java/com/JMPE/
