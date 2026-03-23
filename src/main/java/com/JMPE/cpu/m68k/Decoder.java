@@ -1264,7 +1264,7 @@ public final class Decoder {
      */
     private DecodedInstruction decodeLineB(int op, Bus bus, int extPc) throws IllegalInstructionException {
         // Currently unimplemented: report as illegal instead of crashing with RuntimeException.
-        throw new IllegalInstructionException(String.format("Unimplemented Line B instruction: 0x%04X", op & 0xFFFF));
+        throw new IllegalInstructionException(op, extPc);
     }
 
     /**
@@ -1277,7 +1277,7 @@ public final class Decoder {
         // AND/MUL/ABCD/EXG decoding is not yet implemented. Treat all Line C
         // opwords as illegal so that the CPU can route them via the standard
         // illegal-instruction exception vector instead of crashing the emulator.
-        throw new IllegalInstructionException(op);
+        throw new IllegalInstructionException(op, extPc);
     }
 
     /**
