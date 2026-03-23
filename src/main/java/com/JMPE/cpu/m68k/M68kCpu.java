@@ -111,10 +111,10 @@ public final class M68kCpu {
 
             registers.setProgramCounter(decoded.nextPc());
             Op handler = dispatchTable.lookup(decoded.opcode());
-            handler.execute(this, decoded);
+            int cycles = handler.execute(this, decoded);
 
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
-            StepReport report = StepReport.success(instructionName, before, after);
+            StepReport report = StepReport.success(instructionName, before, after, cycles);
             reporter.accept(report.toLogLine());
             return report;
         } catch (IllegalInstructionException | RuntimeException exception) {
@@ -181,28 +181,35 @@ public final class M68kCpu {
         private final StepSnapshot before;
         private final StepSnapshot after;
         private final String errorMessage;
+        private final int cycles;
 
         private StepReport(String instructionName,
                            boolean success,
                            StepSnapshot before,
                            StepSnapshot after,
-                           String errorMessage) {
+                           String errorMessage,
+                           int cycles) {
             this.instructionName = instructionName;
             this.success = success;
             this.before = before;
             this.after = after;
             this.errorMessage = errorMessage;
+            this.cycles = cycles;
+        }
+
+        static StepReport success(String instructionName, StepSnapshot before, StepSnapshot after, int cycles) {
+            return new StepReport(instructionName, true, before, after, null, cycles);
         }
 
         static StepReport success(String instructionName, StepSnapshot before, StepSnapshot after) {
-            return new StepReport(instructionName, true, before, after, null);
+            return new StepReport(instructionName, true, before, after, null, 0);
         }
 
         static StepReport failure(String instructionName,
                                   StepSnapshot before,
                                   StepSnapshot after,
                                   String errorMessage) {
-            return new StepReport(instructionName, false, before, after, errorMessage);
+            return new StepReport(instructionName, false, before, after, errorMessage, 0);
         }
 
         public boolean success() {
@@ -217,12 +224,17 @@ public final class M68kCpu {
             return after;
         }
 
+        public int cycles() {
+            return cycles;
+        }
+
         public String toLogLine() {
             String status = success ? "OK" : "ERR";
             String error = success ? "" : " error=\"" + (errorMessage == null ? "<no-message>" : errorMessage) + "\"";
             return "[m68k-step] "
                 + status
                 + " op=" + instructionName
+                + " cycles=" + cycles
                 + " pc=" + formatHex(before.programCounter()) + "->" + formatHex(after.programCounter())
                 + " sr=" + formatWord(before.statusRegister()) + "(" + formatFlags(before.conditionCodeRegister()) + ")"
                 + "->" + formatWord(after.statusRegister()) + "(" + formatFlags(after.conditionCodeRegister()) + ")"
