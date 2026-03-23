@@ -12,12 +12,12 @@ package com.JMPE.cpu.m68k.exceptions;
  * from the emulated program's perspective and should propagate up to the
  * CPU loop without requiring every intermediate caller to declare it.
  */
-public class BusErrorException extends Exception {
+public class BusErrorException extends RuntimeException {
 
     private final int address;
 
     public BusErrorException(int address) {
-        super(String.format("<[BusErrorException]> address{0x%08X} is not word-aligned", address & 0x00FF_FFFF));
+        super(String.format("<[BusErrorException]> unmapped bus address 0x%08X", address & 0x00FF_FFFF));
         this.address = address;
     }
 
