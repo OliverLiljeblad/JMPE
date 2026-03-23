@@ -22,6 +22,17 @@ gradle --no-daemon test
 gradle --no-daemon build
 ```
 
+## Helpful trace command
+To see the current end-to-end `NOP` fetch/decode/dispatch/execute flow with only
+the important trace lines:
+
+```bash
+# Note: ./tools/nop-trace.sh currently expects the Gradle wrapper script (./gradlew).
+# Since the wrapper JAR is not checked in, either generate the wrapper (e.g. `gradle wrapper`)
+# or update the script locally to invoke system Gradle instead of ./gradlew.
+./tools/nop-trace.sh
+```
+
 ## Project layout
 ```text
 src/main/java/com/JMPE/
