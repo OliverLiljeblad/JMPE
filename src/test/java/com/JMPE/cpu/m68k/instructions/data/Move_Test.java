@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class Move_Test {
     @Test
-    void executeMasksByteResultUpdatesCcrAndLeavesExternalXStateUntouched() {
+    void executeMasksByteResultUpdatesCcr() {
         AtomicInteger writtenValue = new AtomicInteger();
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
@@ -24,8 +24,7 @@ public class Move_Test {
                 () -> assertTrue(conditionCodes.negative),
                 () -> assertFalse(conditionCodes.zero),
                 () -> assertFalse(conditionCodes.overflow),
-                () -> assertFalse(conditionCodes.carry),
-                () -> assertTrue(conditionCodes.externalXState)
+                () -> assertFalse(conditionCodes.carry)
         );
     }
 
@@ -77,7 +76,6 @@ public class Move_Test {
         private boolean zero;
         private boolean overflow;
         private boolean carry;
-        private boolean externalXState = true;
 
         @Override
         public void setNegative(boolean value) {
