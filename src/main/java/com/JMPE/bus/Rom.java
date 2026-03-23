@@ -1,74 +1,100 @@
 package com.JMPE.bus;
 
-/**
- * A read-only memory region holding the Mac Plus ROM image.
- *
- * <h2>Write behaviour</h2>
- * On real Mac Plus hardware, writing to the ROM address range hits open bus —
- * nothing happens and no error is generated.  This implementation matches
- * that behaviour: all {@code write*} methods are silent no-ops.  If the ROM
- * were instead to throw on write, boot-time self-test code that probes the
- * address space would incorrectly trigger Bus Error exceptions.
- *
- * <h2>Loading</h2>
- * The backing array is supplied at construction time.  The caller
- * ({@link com.JMPE.util.RomLoader}) is responsible for reading the image
- * from disk and verifying its checksum before handing it over.
- *
- * <h2>Mirroring</h2>
- * The Mac Plus ROM appears at multiple address ranges (e.g. 0x400000 and
- * 0xFC0000).  Rather than duplicating the array, {@link AddressSpace} should
- * register two separate {@code Rom} instances pointing at the same
- * {@code byte[]} but with different {@code base} values.  The constructor
- * accepts the array by reference for exactly this reason.
- */
-public final class Rom implements MemoryRegion {
+import java.util.Arrays;
 
-    private final int    base;
-    private final byte[] data;
+/**
+ * Read-only memory region mapped into the emulator address space.
+ * <p>
+ * ROM bytes are immutable after construction so accidental writes fail fast.
+ */
+public final class Rom {
+    private static final int RESET_STACK_POINTER_OFFSET = 0;
+    private static final int RESET_PROGRAM_COUNTER_OFFSET = 4;
+    private static final int RESET_VECTOR_BYTES = 8;
+
+    private final int baseAddress;
+    private final byte[] bytes;
+
+    public Rom(int baseAddress, byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("ROM bytes must not be null or empty");
+        }
+        this.baseAddress = baseAddress;
+        this.bytes = Arrays.copyOf(bytes, bytes.length);
+    }
+
+    public int baseAddress() {
+        return baseAddress;
+    }
+
+    public int size() {
+        return bytes.length;
+    }
+
+    public boolean contains(int address) {
+        long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
+        return offset >= 0 && offset < bytes.length;
+    }
+
+    public int readByte(int address) {
+        return Byte.toUnsignedInt(bytes[offsetFor(address, 1)]);
+    }
+
+    public int readWord(int address) {
+        int offset = offsetFor(address, 2);
+        return (Byte.toUnsignedInt(bytes[offset]) << 8)
+            | Byte.toUnsignedInt(bytes[offset + 1]);
+    }
+
+    public long readLong(int address) {
+        int offset = offsetFor(address, 4);
+        return ((long) Byte.toUnsignedInt(bytes[offset]) << 24)
+            | ((long) Byte.toUnsignedInt(bytes[offset + 1]) << 16)
+            | ((long) Byte.toUnsignedInt(bytes[offset + 2]) << 8)
+            | Byte.toUnsignedInt(bytes[offset + 3]);
+    }
 
     /**
-     * Creates a ROM region backed by the supplied data array.
-     *
-     * @param base the lowest bus address owned by this region
-     * @param data the ROM bytes; the array is used directly (not copied)
+     * Reads the initial supervisor stack pointer from vector table offset 0x000000.
      */
-    public Rom(int base, byte[] data) {
-        this.base = base;
-        this.data = data;
+    public int initialSupervisorStackPointer() {
+        ensureHasResetVectors();
+        return (int) readLong(baseAddress + RESET_STACK_POINTER_OFFSET);
     }
 
-    @Override public int base() { return base; }
-    @Override public int size() { return data.length; }
-
-    // -------------------------------------------------------------------------
-    // Reads — identical big-endian layout to Ram
-    // -------------------------------------------------------------------------
-
-    @Override
-    public int readByte(int offset) {
-        return data[offset] & 0xFF;
+    /**
+     * Reads the initial program counter from vector table offset 0x000004.
+     */
+    public int initialProgramCounter() {
+        ensureHasResetVectors();
+        return (int) readLong(baseAddress + RESET_PROGRAM_COUNTER_OFFSET);
     }
 
-    @Override
-    public int readWord(int offset) {
-        return ((data[offset]     & 0xFF) << 8)
-            |  (data[offset + 1] & 0xFF);
+    /**
+     * ROM is immutable by design; writes should be routed to RAM/MMIO regions instead.
+     */
+    public void writeByte(int address, int value) {
+        throw new UnsupportedOperationException(
+            "Cannot write to ROM at address 0x" + Integer.toHexString(address));
     }
 
-    @Override
-    public int readLong(int offset) {
-        return ((data[offset]     & 0xFF) << 24)
-            | ((data[offset + 1] & 0xFF) << 16)
-            | ((data[offset + 2] & 0xFF) <<  8)
-            |  (data[offset + 3] & 0xFF);
+    public byte[] copyBytes() {
+        return Arrays.copyOf(bytes, bytes.length);
     }
 
-    // -------------------------------------------------------------------------
-    // Writes — silent no-ops (open bus behaviour)
-    // -------------------------------------------------------------------------
+    private int offsetFor(int address, int width) {
+        long start = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
+        long endExclusive = start + width;
+        if (start < 0 || endExclusive > bytes.length) {
+            throw new IndexOutOfBoundsException(
+                "ROM access out of bounds at address 0x" + Integer.toHexString(address));
+        }
+        return (int) start;
+    }
 
-    @Override public void writeByte(int offset, int value) { /* open bus */ }
-    @Override public void writeWord(int offset, int value) { /* open bus */ }
-    @Override public void writeLong(int offset, int value) { /* open bus */ }
+    private void ensureHasResetVectors() {
+        if (bytes.length < RESET_VECTOR_BYTES) {
+            throw new IllegalStateException("ROM must contain at least 8 bytes for reset vectors");
+        }
+    }
 }
