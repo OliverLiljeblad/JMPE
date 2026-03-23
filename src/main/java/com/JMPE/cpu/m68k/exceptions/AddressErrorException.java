@@ -11,12 +11,12 @@ package com.JMPE.cpu.m68k.exceptions;
  *
  * <p>Unchecked for the same reason as {@link BusErrorException}.
  */
-public class AddressErrorException extends Exception {
+public class AddressErrorException extends RuntimeException {
 
     private final int address;
 
     public AddressErrorException(int address) {
-        super(String.format("<[AddressErrorException]> address{0x%08X} is not part of any registered region", address & 0x00FF_FFFF));
+        super(String.format("<[AddressErrorException]> address{0x%08X} is misaligned (odd address) for word/long access", address & 0x00FF_FFFF));
         this.address = address;
     }
 
