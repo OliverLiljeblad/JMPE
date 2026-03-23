@@ -1273,9 +1273,11 @@ public final class Decoder {
      * <p>Bits 7:6 = 11 → MULU/MULS. Bit 8 = 1 with bits 5:4 = 00 → ABCD.
      * Bit 8 = 1 with specific patterns → EXG. Otherwise → AND.
      */
-    private DecodedInstruction decodeLineC(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLineC(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        // AND/MUL/ABCD/EXG decoding is not yet implemented. Treat all Line C
+        // opwords as illegal so that the CPU can route them via the standard
+        // illegal-instruction exception vector instead of crashing the emulator.
+        throw new IllegalInstructionException(op);
     }
 
     /**
