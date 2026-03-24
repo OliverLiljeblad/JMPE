@@ -17,8 +17,10 @@ class MacPlusMachineTest {
         }, 0x0040_0000);
 
         assertNotNull(machine.cpu());
+        assertNotNull(machine.bus());
         assertNotNull(machine.cpu().statusRegister());
         assertEquals(0x0040_0000, machine.rom().baseAddress());
+        assertEquals(0x0040_0100, machine.bus().readLong(0x0040_0004));
         assertEquals(0x0000_2000, machine.cpu().registers().stackPointer());
         assertEquals(0x0040_0100, machine.cpu().registers().programCounter());
         assertTrue(machine.cpu().statusRegister().isSupervisorSet());
@@ -31,6 +33,7 @@ class MacPlusMachineTest {
         MacPlusMachine machine = new MacPlusMachine(rom);
 
         assertSame(rom, machine.rom());
+        assertNotNull(machine.bus());
         assertEquals(0x0000_2000, machine.cpu().registers().stackPointer());
         assertEquals(0x0000_0008, machine.cpu().registers().programCounter());
     }

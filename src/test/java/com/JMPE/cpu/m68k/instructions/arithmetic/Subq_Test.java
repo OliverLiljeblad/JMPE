@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ public class Subq_Test {
         AtomicInteger writtenValue = new AtomicInteger(-1);
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        int cycles = Subq.execute(Move.Size.BYTE, 1, () -> 0x0000, writtenValue::set, conditionCodes);
+        int cycles = Subq.execute(Size.BYTE, 1, () -> 0x0000, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Subq.EXECUTION_CYCLES, cycles),
@@ -35,7 +36,7 @@ public class Subq_Test {
         AtomicInteger writtenValue = new AtomicInteger(-1);
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        Subq.execute(Move.Size.BYTE, 1, () -> 0x0080, writtenValue::set, conditionCodes);
+        Subq.execute(Size.BYTE, 1, () -> 0x0080, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x007F, writtenValue.get()),
@@ -56,7 +57,7 @@ public class Subq_Test {
                         "quickValue must be in range 1..8",
                         assertThrows(
                                 IllegalArgumentException.class,
-                                () -> Subq.execute(Move.Size.WORD, 0, () -> 0, value -> {
+                                () -> Subq.execute(Size.WORD, 0, () -> 0, value -> {
                                 }, conditionCodes)
                         ).getMessage()
                 ),
@@ -64,7 +65,7 @@ public class Subq_Test {
                         "quickValue must be in range 1..8",
                         assertThrows(
                                 IllegalArgumentException.class,
-                                () -> Subq.execute(Move.Size.WORD, 9, () -> 0, value -> {
+                                () -> Subq.execute(Size.WORD, 9, () -> 0, value -> {
                                 }, conditionCodes)
                         ).getMessage()
                 )

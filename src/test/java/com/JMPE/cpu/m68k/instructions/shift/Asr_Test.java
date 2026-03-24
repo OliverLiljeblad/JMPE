@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ public class Asr_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // 0x80 sign-extended is -128; right-shifted by 1 gives -64 (0xC0). Sign is preserved.
-        int cycles = Asr.execute(Move.Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
+        int cycles = Asr.execute(Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Asr.EXECUTION_CYCLES, cycles),
@@ -37,7 +38,7 @@ public class Asr_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Shifting 0x01 right by 1: LSB becomes carry; result is 0.
-        Asr.execute(Move.Size.BYTE, 1, () -> 0x01, writtenValue::set, conditionCodes);
+        Asr.execute(Size.BYTE, 1, () -> 0x01, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0, writtenValue.get()),
@@ -55,7 +56,7 @@ public class Asr_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // count=0: no shift; extend is never written; flags reflect the original value.
-        Asr.execute(Move.Size.BYTE, 0, () -> 0x42, writtenValue::set, conditionCodes);
+        Asr.execute(Size.BYTE, 0, () -> 0x42, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x42, writtenValue.get()),
@@ -73,7 +74,7 @@ public class Asr_Test {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> Asr.execute(Move.Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
+                () -> Asr.execute(Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
         );
 
         assertEquals("count must be >= 0", exception.getMessage());

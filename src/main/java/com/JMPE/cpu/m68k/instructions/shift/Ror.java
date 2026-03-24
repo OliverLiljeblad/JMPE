@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -26,7 +27,7 @@ public final class Ror {
     }
 
     public static int execute(
-            Move.Size size,
+            Size size,
             int count,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
@@ -39,7 +40,7 @@ public final class Ror {
         validateCount(count);
 
         int result = size.mask(destinationReader.read());
-        int signBitMask = signBitMask(size);
+        int signBitMask = size.signBitMask();
         boolean carry = false;
         if (count > 0) {
             for (int rotate = 0; rotate < count; rotate++) {
@@ -58,14 +59,6 @@ public final class Ror {
         conditionCodes.setOverflow(false);
         conditionCodes.setCarry(carry);
         return EXECUTION_CYCLES;
-    }
-
-    private static int signBitMask(Move.Size size) {
-        return switch (size) {
-            case BYTE -> 0x0000_0080;
-            case WORD -> 0x0000_8000;
-            case LONG -> 0x8000_0000;
-        };
     }
 
     private static void validateCount(int count) {

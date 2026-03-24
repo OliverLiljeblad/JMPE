@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ public class Cmp_Test {
     void executeSetsZeroForEqualOperands() {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        int cycles = Cmp.execute(Move.Size.WORD, () -> 0x1234, () -> 0x1234, conditionCodes);
+        int cycles = Cmp.execute(Size.WORD, () -> 0x1234, () -> 0x1234, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Cmp.EXECUTION_CYCLES, cycles),
@@ -28,7 +29,7 @@ public class Cmp_Test {
     void executeSetsNegativeAndCarryWhenUnsignedBorrowOccurs() {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        Cmp.execute(Move.Size.WORD, () -> 0x0001, () -> 0x0000, conditionCodes);
+        Cmp.execute(Size.WORD, () -> 0x0001, () -> 0x0000, conditionCodes);
 
         assertAll(
                 () -> assertFalse(conditionCodes.zero),
@@ -42,7 +43,7 @@ public class Cmp_Test {
     void executeSetsOverflowForSignedWraparoundCase() {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        Cmp.execute(Move.Size.BYTE, () -> 0x01, () -> 0x80, conditionCodes);
+        Cmp.execute(Size.BYTE, () -> 0x01, () -> 0x80, conditionCodes);
 
         assertAll(
                 () -> assertFalse(conditionCodes.zero),

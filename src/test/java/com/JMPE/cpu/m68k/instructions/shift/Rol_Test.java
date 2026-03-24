@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ public class Rol_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Rotating 0x80 left by 1: MSB wraps into bit 0, carry reflects the shifted-out MSB.
-        int cycles = Rol.execute(Move.Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
+        int cycles = Rol.execute(Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Rol.EXECUTION_CYCLES, cycles),
@@ -36,7 +37,7 @@ public class Rol_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Rotating 0x4000 left by 1: result is 0x8000 (MSB set = negative word), no carry.
-        Rol.execute(Move.Size.WORD, 1, () -> 0x4000, writtenValue::set, conditionCodes);
+        Rol.execute(Size.WORD, 1, () -> 0x4000, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x8000, writtenValue.get()),
@@ -53,7 +54,7 @@ public class Rol_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // count=0: no rotation; carry is cleared.
-        Rol.execute(Move.Size.BYTE, 0, () -> 0x42, writtenValue::set, conditionCodes);
+        Rol.execute(Size.BYTE, 0, () -> 0x42, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x42, writtenValue.get()),
@@ -70,7 +71,7 @@ public class Rol_Test {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> Rol.execute(Move.Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
+                () -> Rol.execute(Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
         );
 
         assertEquals("count must be >= 0", exception.getMessage());

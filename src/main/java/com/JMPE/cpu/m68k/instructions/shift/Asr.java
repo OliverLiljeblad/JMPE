@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -30,7 +31,7 @@ public final class Asr {
     }
 
     public static int execute(
-            Move.Size size,
+            Size size,
             int count,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
@@ -43,7 +44,7 @@ public final class Asr {
         validateCount(count);
 
         int maskedValue = size.mask(destinationReader.read());
-        int current = signExtend(size, maskedValue);
+        int current = size.signExtend(maskedValue);
         boolean carry = false;
         if (count > 0) {
             for (int shift = 0; shift < count; shift++) {
@@ -62,14 +63,6 @@ public final class Asr {
             conditionCodes.setExtend(carry);
         }
         return EXECUTION_CYCLES;
-    }
-
-    private static int signExtend(Move.Size size, int value) {
-        return switch (size) {
-            case BYTE -> (byte) value;
-            case WORD -> (short) value;
-            case LONG -> value;
-        };
     }
 
     private static void validateCount(int count) {

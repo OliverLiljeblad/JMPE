@@ -5,8 +5,8 @@ package com.JMPE.bus;
  *
  * <p>Instances are registered with {@link AddressSpace}, which dispatches
  * every bus read and write to whichever region owns the target address.
- * The three concrete implementations are {@link Ram}, {@link Rom}, and
- * {@link Mmio}; device drivers (VIA, IWM, SCC …) implement {@code Mmio}.
+ * Typical implementations include {@link Ram}, {@link RomRegion}, and
+ * device-backed MMIO regions.
  *
  * <h2>Address contract</h2>
  * Every address passed to {@code read*} / {@code write*} is a <em>local</em>

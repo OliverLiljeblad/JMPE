@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
 import java.util.Objects;
 
 /**
@@ -44,7 +45,7 @@ public final class MoveQ {
         validateDestinationRegister(destinationRegister);
         int longResult = signExtend8(immediate8);
         registerWriter.writeLong(destinationRegister, longResult);
-        Move.updateConditionCodes(longResult, Move.Size.LONG, conditionCodes);
+        Move.updateConditionCodes(longResult, Size.LONG, conditionCodes);
         return EXECUTION_CYCLES;
     }
 

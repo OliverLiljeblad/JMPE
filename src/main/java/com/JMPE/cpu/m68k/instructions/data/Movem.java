@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
 import java.util.Objects;
 
 /**
@@ -42,16 +43,16 @@ public final class Movem {
 
     @FunctionalInterface
     public interface MemoryReader {
-        int read(int address, Move.Size size);
+        int read(int address, Size size);
     }
 
     @FunctionalInterface
     public interface MemoryWriter {
-        void write(int address, Move.Size size, int value);
+        void write(int address, Size size, int value);
     }
 
     public static int executeRegistersToMemory(
-            Move.Size size,
+            Size size,
             AddressingMode addressingMode,
             int registerMask,
             int startAddress,
@@ -88,7 +89,7 @@ public final class Movem {
     }
 
     public static int executeMemoryToRegisters(
-            Move.Size size,
+            Size size,
             AddressingMode addressingMode,
             int registerMask,
             int startAddress,
@@ -117,8 +118,8 @@ public final class Movem {
 
             int registerIndex = FORWARD_ORDER[bitIndex];
             int memoryValue = memoryReader.read(address, size);
-            int registerValue = size == Move.Size.WORD
-                    ? signExtendWord(memoryValue)
+            int registerValue = size == Size.WORD
+                    ? size.signExtend(memoryValue)
                     : size.mask(memoryValue);
             if (addressingMode == AddressingMode.POSTINCREMENT
                     && effectiveAddressRegister >= 0
@@ -133,8 +134,8 @@ public final class Movem {
         return EXECUTION_CYCLES;
     }
 
-    private static void validateSize(Move.Size size) {
-        if (size == Move.Size.BYTE) {
+    private static void validateSize(Size size) {
+        if (size != Size.WORD && size != Size.LONG) {
             throw new IllegalArgumentException("MOVEM only supports WORD and LONG sizes");
         }
     }
@@ -143,9 +144,5 @@ public final class Movem {
         if (effectiveAddressRegister < -1 || effectiveAddressRegister >= DATA_REGISTER_COUNT) {
             throw new IllegalArgumentException("effectiveAddressRegister must be -1 or in range 0..7");
         }
-    }
-
-    private static int signExtendWord(int value) {
-        return (short) (value & 0xFFFF);
     }
 }
