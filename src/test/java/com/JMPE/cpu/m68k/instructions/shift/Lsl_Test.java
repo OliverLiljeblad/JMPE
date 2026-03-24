@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ public class Lsl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Shifting 0x80 left by 1: MSB becomes carry, result wraps to 0. V is always clear for LSL.
-        int cycles = Lsl.execute(Move.Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
+        int cycles = Lsl.execute(Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Lsl.EXECUTION_CYCLES, cycles),
@@ -37,7 +38,7 @@ public class Lsl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Shifting 0x4000 left by 1: result is 0x8000 (negative word), no carry.
-        Lsl.execute(Move.Size.WORD, 1, () -> 0x4000, writtenValue::set, conditionCodes);
+        Lsl.execute(Size.WORD, 1, () -> 0x4000, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x8000, writtenValue.get()),
@@ -55,7 +56,7 @@ public class Lsl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // count=0: no shift; extend is never written.
-        Lsl.execute(Move.Size.BYTE, 0, () -> 0x55, writtenValue::set, conditionCodes);
+        Lsl.execute(Size.BYTE, 0, () -> 0x55, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x55, writtenValue.get()),
@@ -73,7 +74,7 @@ public class Lsl_Test {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> Lsl.execute(Move.Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
+                () -> Lsl.execute(Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
         );
 
         assertEquals("count must be >= 0", exception.getMessage());

@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,7 +17,7 @@ public class Move_Test {
         AtomicInteger writtenValue = new AtomicInteger();
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        int cycles = Move.execute(Move.Size.BYTE, 0x01FF, writtenValue::set, conditionCodes);
+        int cycles = Move.execute(Size.BYTE, 0x01FF, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Move.DEFAULT_CYCLES, cycles),
@@ -33,7 +34,7 @@ public class Move_Test {
         AtomicInteger writtenValue = new AtomicInteger();
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        Move.execute(Move.Size.WORD, 0x0001_0000, writtenValue::set, conditionCodes);
+        Move.execute(Size.WORD, 0x0001_0000, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0, writtenValue.get()),
@@ -49,7 +50,7 @@ public class Move_Test {
         AtomicInteger writtenValue = new AtomicInteger();
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        int cycles = Move.execute(Move.Size.LONG, 0x1234_5678, writtenValue::set, conditionCodes, 12);
+        int cycles = Move.execute(Size.LONG, 0x1234_5678, writtenValue::set, conditionCodes, 12);
 
         assertAll(
                 () -> assertEquals(12, cycles),
@@ -64,7 +65,7 @@ public class Move_Test {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> Move.execute(Move.Size.WORD, 0x1234, value -> {
+                () -> Move.execute(Size.WORD, 0x1234, value -> {
                 }, conditionCodes, -1)
         );
 

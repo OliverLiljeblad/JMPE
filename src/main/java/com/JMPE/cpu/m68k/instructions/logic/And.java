@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.logic;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -31,7 +32,7 @@ public final class And {
     }
 
     public static int execute(
-            Move.Size size,
+            Size size,
             SourceReader sourceReader,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,

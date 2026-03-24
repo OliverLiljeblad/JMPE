@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -26,7 +27,7 @@ public final class Cmp {
     }
 
     public static int execute(
-        Move.Size size,
+        Size size,
         SourceReader sourceReader,
         DestinationReader destinationReader,
         Move.ConditionCodes conditionCodes
@@ -50,7 +51,7 @@ public final class Cmp {
      * </p>
      */
     private static void updateConditionCodes(
-        Move.Size size,
+        Size size,
         int destinationValue,
         int sourceValue,
         int result,

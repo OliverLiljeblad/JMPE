@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class Movem_Test {
 
         // mask = 0x0003: bits 0 and 1 → D0 then D1, in forward order.
         int cycles = Movem.executeRegistersToMemory(
-                Move.Size.WORD,
+                Size.WORD,
                 Movem.AddressingMode.CONTROL,
                 0x0003,
                 0x1000,
@@ -50,7 +51,7 @@ public class Movem_Test {
 
         // mask = 0x0003: bits 0 and 1 → PREDECREMENT_ORDER[0]=A7, PREDECREMENT_ORDER[1]=A6.
         Movem.executeRegistersToMemory(
-                Move.Size.WORD,
+                Size.WORD,
                 Movem.AddressingMode.PREDECREMENT,
                 0x0003,
                 0x1000,
@@ -67,7 +68,7 @@ public class Movem_Test {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> Movem.executeRegistersToMemory(
-                        Move.Size.WORD,
+                        Size.WORD,
                         Movem.AddressingMode.POSTINCREMENT,
                         0x00FF,
                         0x1000,
@@ -85,7 +86,7 @@ public class Movem_Test {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> Movem.executeRegistersToMemory(
-                        Move.Size.BYTE,
+                        Size.BYTE,
                         Movem.AddressingMode.CONTROL,
                         0x00FF,
                         0x1000,
@@ -107,7 +108,7 @@ public class Movem_Test {
 
         // mask = 0x0003: bits 0 and 1 → D0 (register 0) and D1 (register 1).
         int cycles = Movem.executeMemoryToRegisters(
-                Move.Size.LONG,
+                Size.LONG,
                 Movem.AddressingMode.POSTINCREMENT,
                 0x0003,
                 0x1000,
@@ -129,7 +130,7 @@ public class Movem_Test {
 
         // mask = 0x0001: bit 0 → D0. Reading 0x8000 as WORD sign-extends to 0xFFFF8000.
         Movem.executeMemoryToRegisters(
-                Move.Size.WORD,
+                Size.WORD,
                 Movem.AddressingMode.POSTINCREMENT,
                 0x0001,
                 0x1000,
@@ -146,7 +147,7 @@ public class Movem_Test {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> Movem.executeMemoryToRegisters(
-                        Move.Size.WORD,
+                        Size.WORD,
                         Movem.AddressingMode.PREDECREMENT,
                         0x00FF,
                         0x1000,
@@ -164,7 +165,7 @@ public class Movem_Test {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> Movem.executeMemoryToRegisters(
-                        Move.Size.BYTE,
+                        Size.BYTE,
                         Movem.AddressingMode.POSTINCREMENT,
                         0x00FF,
                         0x1000,

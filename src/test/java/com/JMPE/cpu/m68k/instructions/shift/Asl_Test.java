@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ public class Asl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Shifting 0x80 left by 1: MSB becomes carry, result wraps to 0, sign flips 1→0 so overflow is set.
-        int cycles = Asl.execute(Move.Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
+        int cycles = Asl.execute(Size.BYTE, 1, () -> 0x80, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(Asl.EXECUTION_CYCLES, cycles),
@@ -37,7 +38,7 @@ public class Asl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // Shifting 0x40 left by 1: sign changes from 0 to 1, so overflow is set.
-        Asl.execute(Move.Size.BYTE, 1, () -> 0x40, writtenValue::set, conditionCodes);
+        Asl.execute(Size.BYTE, 1, () -> 0x40, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x80, writtenValue.get()),
@@ -55,7 +56,7 @@ public class Asl_Test {
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
         // count=0: no shift; extend is never written; flags reflect the original value.
-        Asl.execute(Move.Size.BYTE, 0, () -> 0x01, writtenValue::set, conditionCodes);
+        Asl.execute(Size.BYTE, 0, () -> 0x01, writtenValue::set, conditionCodes);
 
         assertAll(
                 () -> assertEquals(0x01, writtenValue.get()),
@@ -73,7 +74,7 @@ public class Asl_Test {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> Asl.execute(Move.Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
+                () -> Asl.execute(Size.BYTE, -1, () -> 0, value -> {}, conditionCodes)
         );
 
         assertEquals("count must be >= 0", exception.getMessage());

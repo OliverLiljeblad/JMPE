@@ -1,5 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
+
 import java.util.Objects;
 import java.util.function.IntConsumer;
 
@@ -14,41 +16,6 @@ public final class Move {
     public static final int DEFAULT_CYCLES = 4;
 
     private Move() {
-    }
-
-    /**
-     * Sized result metadata used for masking and CCR sign/zero evaluation.
-     */
-    public enum Size {
-        BYTE(1, 0x0000_00FF, 0x0000_0080),
-        WORD(2, 0x0000_FFFF, 0x0000_8000),
-        LONG(4, 0xFFFF_FFFF, 0x8000_0000);
-
-        private final int bytes;
-        private final int mask;
-        private final int signBit;
-
-        Size(int bytes, int mask, int signBit) {
-            this.bytes = bytes;
-            this.mask = mask;
-            this.signBit = signBit;
-        }
-
-        public int bytes() {
-            return bytes;
-        }
-
-        public int mask(int value) {
-            return value & mask;
-        }
-
-        public boolean isNegative(int maskedValue) {
-            return (maskedValue & signBit) != 0;
-        }
-
-        public boolean isZero(int maskedValue) {
-            return maskedValue == 0;
-        }
     }
 
     /**

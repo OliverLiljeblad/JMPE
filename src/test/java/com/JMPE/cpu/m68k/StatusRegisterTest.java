@@ -99,7 +99,7 @@ class StatusRegisterTest {
         StatusRegister sr = new StatusRegister();
         sr.setExtend(true);
 
-        Move.updateConditionCodes(0x00, Move.Size.BYTE, sr.moveConditionCodes());
+        Move.updateConditionCodes(0x00, Size.BYTE, sr.moveConditionCodes());
 
         assertTrue(sr.isZeroSet());
         assertFalse(sr.isNegativeSet());
@@ -112,7 +112,7 @@ class StatusRegisterTest {
     void arithmeticConditionCodesAdapterSetsExtendWithCarry() {
         StatusRegister sr = new StatusRegister();
         Add.execute(
-            Move.Size.BYTE,
+            Size.BYTE,
             () -> 0x01,
             () -> 0xFF,
             ignored -> {
