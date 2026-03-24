@@ -23,14 +23,20 @@ gradle --no-daemon build
 ```
 
 ## Helpful trace commands
-To see the current end-to-end `NOP` flow with only the important trace lines:
+To see the current end-to-end trace flows with only the important lines:
 
 ```bash
-# CPU-layer trace
+# CPU-layer NOP trace
 ./tools/nop-trace.sh
 
-# Machine-layer trace
+# Machine-layer NOP trace
 ./tools/machine-nop-trace.sh
+
+# CPU-layer TST.B D0 trace
+./tools/tst-trace.sh
+
+# Machine-layer TST.B D0 trace
+./tools/machine-tst-trace.sh
 ```
 
 ## Project layout
