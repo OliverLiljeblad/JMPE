@@ -13,10 +13,10 @@ import java.util.List;
  *
  * <h2>Role in the system</h2>
  * {@code AddressSpace} is the single owner of all registered regions.
- * {@link MacPlusMachine} builds one instance, registers RAM, ROM-backed
- * regions, and each
- * MMIO region into it, then passes it (as a {@link Bus}) to everything that
- * needs bus access: the CPU, the decoder, the DMA controller, etc.
+ * {@link MacPlusMachine} builds one instance, registers the machine's memory
+ * regions into it (such as ROM-backed and other addressable regions), then
+ * passes it (as a {@link Bus}) to everything that needs bus access: the CPU,
+ * the decoder, the DMA controller, etc.
  *
  * <h2>Address masking</h2>
  * The 68000 has 24 address pins, so bit 24 and above are ignored.
