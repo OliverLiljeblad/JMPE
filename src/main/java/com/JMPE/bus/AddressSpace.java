@@ -13,7 +13,8 @@ import java.util.List;
  *
  * <h2>Role in the system</h2>
  * {@code AddressSpace} is the single owner of all registered regions.
- * {@link MacPlusMachine} builds one instance, registers RAM, ROM, and each
+ * {@link MacPlusMachine} builds one instance, registers RAM, ROM-backed
+ * regions, and each
  * MMIO region into it, then passes it (as a {@link Bus}) to everything that
  * needs bus access: the CPU, the decoder, the DMA controller, etc.
  *
