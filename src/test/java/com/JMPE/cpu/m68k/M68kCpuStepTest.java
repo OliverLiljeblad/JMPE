@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -68,6 +69,34 @@ class M68kCpuStepTest {
 
         assertTrue(report.success());
         assertEquals(0x0000_1002, cpu.registers().programCounter());
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndUpdatesFlagsForTstDataRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 0x0000_0080);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, 0x4A00), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x0000_0080, cpu.registers().data(0));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 
     @Test

@@ -18,6 +18,14 @@ class DispatchTableTest {
     }
 
     @Test
+    void providesBuiltInTstHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.TST));
+        assertTrue(dispatchTable.lookup(Opcode.TST) instanceof TstOp);
+    }
+
+    @Test
     void returnsRegisteredHandlerFromEmptyTable() {
         DispatchTable dispatchTable = DispatchTable.empty();
         Op handler = (cpu, decoded) -> 4;

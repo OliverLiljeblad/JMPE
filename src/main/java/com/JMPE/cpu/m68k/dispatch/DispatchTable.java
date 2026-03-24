@@ -91,5 +91,6 @@ public final class DispatchTable {
 
     private void registerBuiltIns() {
         register(Opcode.NOP, new NopOp());
+        register(Opcode.TST, new TstOp());
     }
 }
