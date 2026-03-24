@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.logic;
 
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -26,7 +27,7 @@ public final class Not {
     }
 
     public static int execute(
-            Move.Size size,
+            Size size,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
             Move.ConditionCodes conditionCodes
