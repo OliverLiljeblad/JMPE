@@ -112,9 +112,6 @@ class SmallProgramTest {
         System.out.printf("[machine-tst-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
             decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
 
-        Op handler = new DispatchTable().lookup(decoded.opcode());
-        System.out.printf("[machine-tst-trace] dispatch handler=%s%n", handler.getClass().getSimpleName());
-
         M68kCpu.StepReport report = machine.step(
             message -> System.out.println("[machine-tst-trace] execute " + message)
         );
