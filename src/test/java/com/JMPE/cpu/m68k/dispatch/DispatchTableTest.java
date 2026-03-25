@@ -10,11 +10,35 @@ import org.junit.jupiter.api.Test;
 
 class DispatchTableTest {
     @Test
+    void providesBuiltInClrHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.CLR));
+        assertTrue(dispatchTable.lookup(Opcode.CLR) instanceof ClrOp);
+    }
+
+    @Test
     void providesBuiltInNopHandler() {
         DispatchTable dispatchTable = new DispatchTable();
 
         assertTrue(dispatchTable.hasHandler(Opcode.NOP));
         assertTrue(dispatchTable.lookup(Opcode.NOP) instanceof NopOp);
+    }
+
+    @Test
+    void providesBuiltInNotHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.NOT));
+        assertTrue(dispatchTable.lookup(Opcode.NOT) instanceof NotOp);
+    }
+
+    @Test
+    void providesBuiltInOriHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.ORI));
+        assertTrue(dispatchTable.lookup(Opcode.ORI) instanceof OriOp);
     }
 
     @Test

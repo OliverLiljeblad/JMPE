@@ -32,6 +32,24 @@ To see the current end-to-end trace flows with only the important lines:
 # Machine-layer NOP trace
 ./tools/machine-nop-trace.sh
 
+# CPU-layer CLR.B D0 trace
+./tools/clr-trace.sh
+
+# Machine-layer CLR.B D0 trace
+./tools/machine-clr-trace.sh
+
+# CPU-layer NOT.B D0 trace
+./tools/not-trace.sh
+
+# Machine-layer NOT.B D0 trace
+./tools/machine-not-trace.sh
+
+# CPU-layer ORI.B #$80,D0 trace
+./tools/ori-trace.sh
+
+# Machine-layer ORI.B #$80,D0 trace
+./tools/machine-ori-trace.sh
+
 # CPU-layer TST.B D0 trace
 ./tools/tst-trace.sh
 

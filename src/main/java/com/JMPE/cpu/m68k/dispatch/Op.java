@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.dispatch;
 
+import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 
