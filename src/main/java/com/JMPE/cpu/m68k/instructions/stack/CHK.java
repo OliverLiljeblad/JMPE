@@ -4,38 +4,74 @@
 // Syntax: CHK <ea>, Dn
 // Sizes: Word (.W) and Long (.L) [.L only on 68020+]
 
-import com.JMPE.cpu.M68kCpu;
+package com.JMPE.cpu.m68k.instructions.data;
 
-public class CHK {
+import com.JMPE.cpu.m68k.Size;
 
-    private final CPU cpu;
+import java.util.Objects;
 
-    public CHK(CPU cpu) {
-        this.cpu = cpu;
+public final class CHK {
+
+    public static final int EXECUTION_CYCLES = 10;
+
+    private CHK() {
     }
 
-    public void execute(int eaMode, int eaReg, int dn, int size) {
-        int upperBound = cpu.readOperand(eaMode, eaReg, size);
-        int regVal     = cpu.getDataRegister(dn);
+    @FunctionalInterface
+    public interface OperandReader {
+        int read(int eaMode, int eaReg, Size size);
+    }
 
-        if (size == SIZE_WORD | size== SIZE_LONG) {
+    @FunctionalInterface
+    public interface RegisterReader {
+        int read(int dn);
+    }
+
+    @FunctionalInterface
+    public interface ExceptionTrigger {
+        void trigger(int exceptionNumber);
+    }
+
+    public interface ConditionCodes {
+        void setN(boolean value);
+    }
+
+    public static int execute(
+        int eaMode,
+        int eaReg,
+        int dn,
+        Size size,
+        OperandReader operandReader,
+        RegisterReader registerReader,
+        ExceptionTrigger exceptionTrigger,
+        ConditionCodes conditionCodes
+    ) {
+        Objects.requireNonNull(size, "size must not be null");
+        Objects.requireNonNull(operandReader, "operandReader must not be null");
+        Objects.requireNonNull(registerReader, "registerReader must not be null");
+        Objects.requireNonNull(exceptionTrigger, "exceptionTrigger must not be null");
+        Objects.requireNonNull(conditionCodes, "conditionCodes must not be null");
+
+        int upperBound = operandReader.read(eaMode, eaReg, size);
+        int regVal = registerReader.read(dn);
+
+        if (size == Size.WORD || size == Size.LONG) {
             upperBound = signExtendWord(upperBound);
-            regVal     = signExtendWord(regVal);
+            regVal = signExtendWord(regVal);
         }
 
         if (regVal < 0) {
-            cpu.ccr.n = true;
-            cpu.triggerException(6);
+            conditionCodes.setN(true);
+            exceptionTrigger.trigger(6);
         } else if (regVal > upperBound) {
-            cpu.ccr.n = false;
-            cpu.triggerException(6);
+            conditionCodes.setN(false);
+            exceptionTrigger.trigger(6);
         }
+
+        return EXECUTION_CYCLES;
     }
 
-    private int signExtendWord(int value) {
+    private static int signExtendWord(int value) {
         return (value << 16) >> 16;
     }
-
-    private static final int SIZE_WORD = 1;
-    private static final int SIZE_LONG = 2;
 }
