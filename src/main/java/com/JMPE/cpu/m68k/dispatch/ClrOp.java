@@ -10,13 +10,20 @@ import com.JMPE.cpu.m68k.instructions.data.Clr;
 import java.util.Objects;
 
 /**
- * Dispatch-layer executor shell for decoded {@code CLR} instructions.
+ * Dispatch-layer executor for decoded {@code CLR} instructions.
  *
  * <p>
- * This class is intentionally being wired in incremental steps. At this stage,
- * it only establishes the runtime adapter shape used by {@link DispatchTable}:
- * an {@link Op} implementation that receives the live CPU plus the decoded
- * instruction.
+ * This implementation validates that the decoded instruction is a proper
+ * {@link Opcode#CLR} with a sized operand, no source, a destination operand,
+ * and no extension payload, and then executes the operation.
+ * </p>
+ *
+ * <p>
+ * Runtime execution is currently limited to a data-register-direct destination
+ * ({@link EffectiveAddress.DataReg}). Other addressing modes should be
+ * rejected by the validation logic above until explicit support is added.
+ * As additional CLR addressing modes are wired into the dispatch layer, this
+ * Javadoc should be kept in sync with the supported behavior and limitations.
  * </p>
  */
 public final class ClrOp implements Op {
