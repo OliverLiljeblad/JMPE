@@ -4,7 +4,7 @@
 // Syntax: CHK <ea>, Dn
 // Sizes: Word (.W) and Long (.L) [.L only on 68020+]
 
-import com.JMPE.cpu.CPU;
+import com.JMPE.cpu.M68kCpu;
 
 public class CHK {
 
