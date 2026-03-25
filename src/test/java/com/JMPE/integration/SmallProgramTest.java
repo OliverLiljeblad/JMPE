@@ -4,8 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.JMPE.cpu.m68k.Decoder;
 import com.JMPE.cpu.m68k.M68kCpu;
+import com.JMPE.cpu.m68k.dispatch.DispatchTable;
+import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
+import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.machine.MacPlusMachine;
 import org.junit.jupiter.api.Test;
 
@@ -65,11 +69,7 @@ class SmallProgramTest {
     @Test
     void stepsTstDataRegisterThroughMachineLayer() throws IllegalInstructionException {
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(romBytesWithSingleInstruction(TST_B_D0), ROM_BASE);
-        machine.cpu().registers().setData(0, 0x0000_0080);
-        machine.cpu().statusRegister().setExtend(true);
-        machine.cpu().statusRegister().setCarry(true);
-        machine.cpu().statusRegister().setOverflow(true);
-        machine.cpu().statusRegister().setZero(true);
+        configureTstScenario(machine.cpu());
         List<String> logs = new ArrayList<>();
 
         M68kCpu.StepReport report = machine.step(logs::add);
@@ -88,6 +88,51 @@ class SmallProgramTest {
         assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
     }
 
+    @Test
+    void traceTstDataRegisterThroughMachineLayerToConsole() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(romBytesWithSingleInstruction(TST_B_D0), ROM_BASE);
+        configureTstScenario(machine.cpu());
+
+        System.out.printf("[machine-tst-trace] machine romBase=0x%08X bus=%s%n",
+            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+        System.out.printf("[machine-tst-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
+            machine.cpu().registers().stackPointer(),
+            machine.cpu().registers().programCounter(),
+            machine.cpu().registers().data(0),
+            machine.cpu().statusRegister().rawValue());
+        System.out.printf("[machine-tst-trace] fetch opword=0x%04X pc=0x%08X%n",
+            machine.bus().readWord(machine.cpu().registers().programCounter()),
+            machine.cpu().registers().programCounter());
+
+        DecodedInstruction decoded = new Decoder().decode(
+            machine.bus().readWord(machine.cpu().registers().programCounter()),
+            machine.bus(),
+            machine.cpu().registers().programCounter() + 2
+        );
+        System.out.printf("[machine-tst-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
+            decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
+
+        M68kCpu.StepReport report = machine.step(
+            message -> System.out.println("[machine-tst-trace] execute " + message)
+        );
+
+        System.out.printf("[machine-tst-trace] result success=%s cycles=%d finalPc=0x%08X d0=0x%08X sr=0x%04X X=%s N=%s Z=%s V=%s C=%s%n",
+            report.success(),
+            report.cycles(),
+            machine.cpu().registers().programCounter(),
+            machine.cpu().registers().data(0),
+            machine.cpu().statusRegister().rawValue(),
+            machine.cpu().statusRegister().isExtendSet(),
+            machine.cpu().statusRegister().isNegativeSet(),
+            machine.cpu().statusRegister().isZeroSet(),
+            machine.cpu().statusRegister().isOverflowSet(),
+            machine.cpu().statusRegister().isCarrySet());
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 2, machine.cpu().registers().programCounter());
+        assertEquals(4, report.cycles());
+    }
+
     private static byte[] romBytesWithSingleInstruction(int opword) {
         byte[] bytes = new byte[0x0200];
 
@@ -104,5 +149,13 @@ class SmallProgramTest {
         bytes[INSTRUCTION_OFFSET] = (byte) ((opword >>> 8) & 0xFF);
         bytes[INSTRUCTION_OFFSET + 1] = (byte) (opword & 0xFF);
         return bytes;
+    }
+
+    private static void configureTstScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, 0x0000_0080);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
     }
 }
