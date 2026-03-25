@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.Size;
 import java.util.Objects;
 
 /**
@@ -19,7 +20,7 @@ public final class Clr {
     }
 
     public static int execute(
-            Move.Size size,
+            Size size,
             DestinationWriter destinationWriter,
             Move.ConditionCodes conditionCodes
     ) {
