@@ -90,7 +90,10 @@ public final class DispatchTable {
     }
 
     private void registerBuiltIns() {
+        register(Opcode.CLR, new ClrOp());
         register(Opcode.NOP, new NopOp());
+        register(Opcode.NOT, new NotOp());
+        register(Opcode.ORI, new OriOp());
         register(Opcode.TST, new TstOp());
     }
 }

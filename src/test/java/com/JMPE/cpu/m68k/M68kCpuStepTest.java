@@ -17,6 +17,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 class M68kCpuStepTest {
+    private static final int CLR_B_D0 = 0x4200;
+    private static final int CLR_BYTE_INITIAL = 0x1234_5678;
+    private static final int CLR_BYTE_RESULT = 0x1234_5600;
+    private static final int NOT_B_D0 = 0x4600;
+    private static final int NOT_BYTE_INITIAL = 0x1234_5600;
+    private static final int NOT_BYTE_RESULT = 0x1234_56FF;
+    private static final int ORI_B_D0 = 0x0000;
+    private static final int ORI_BYTE_IMMEDIATE = 0x0080;
+    private static final int ORI_BYTE_INITIAL = 0x1234_5600;
+    private static final int ORI_BYTE_RESULT = 0x1234_5680;
     private static final int TST_B_D0 = 0x4A00;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
 
@@ -72,6 +82,239 @@ class M68kCpuStepTest {
 
         assertTrue(report.success());
         assertEquals(0x0000_1002, cpu.registers().programCounter());
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesWritesDataRegisterAndUpdatesFlagsForClrDataRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureClrScenario(cpu);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, CLR_B_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(CLR_BYTE_INITIAL, report.before().dataRegister(0));
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(CLR_BYTE_RESULT, report.after().dataRegister(0));
+        assertEquals(CLR_BYTE_RESULT, cpu.registers().data(0));
+        assertFalse(cpu.statusRegister().isNegativeSet());
+        assertTrue(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=CLR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void traceClrDataRegisterPipelineToConsole() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureClrScenario(cpu);
+        AddressSpace bus = busWithOpword(0x0000_1000, CLR_B_D0);
+        DispatchTable dispatchTable = new DispatchTable();
+
+        System.out.printf("[clr-trace] setup pc=0x%08X d0=0x%08X sr=0x%04X%n",
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue());
+
+        int fetchedOpword = bus.readWord(cpu.registers().programCounter());
+        System.out.printf("[clr-trace] fetch opword=0x%04X pc=0x%08X%n",
+            fetchedOpword, cpu.registers().programCounter());
+
+        DecodedInstruction decoded = new Decoder().decode(
+            fetchedOpword,
+            bus,
+            cpu.registers().programCounter() + 2
+        );
+        System.out.printf("[clr-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
+            decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
+
+        Op handler = dispatchTable.lookup(decoded.opcode());
+        System.out.printf("[clr-trace] dispatch handler=%s%n", handler.getClass().getSimpleName());
+
+        M68kCpu.StepReport report = cpu.step(
+            bus,
+            dispatchTable,
+            message -> System.out.println("[clr-trace] execute " + message)
+        );
+
+        System.out.printf("[clr-trace] result success=%s cycles=%d finalPc=0x%08X d0=0x%08X sr=0x%04X X=%s N=%s Z=%s V=%s C=%s%n",
+            report.success(),
+            report.cycles(),
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue(),
+            cpu.statusRegister().isExtendSet(),
+            cpu.statusRegister().isNegativeSet(),
+            cpu.statusRegister().isZeroSet(),
+            cpu.statusRegister().isOverflowSet(),
+            cpu.statusRegister().isCarrySet());
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesWritesDataRegisterAndUpdatesFlagsForNotDataRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureNotScenario(cpu);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, NOT_B_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(NOT_BYTE_INITIAL, report.before().dataRegister(0));
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(NOT_BYTE_RESULT, report.after().dataRegister(0));
+        assertEquals(NOT_BYTE_RESULT, cpu.registers().data(0));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=NOT"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void traceNotDataRegisterPipelineToConsole() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureNotScenario(cpu);
+        AddressSpace bus = busWithOpword(0x0000_1000, NOT_B_D0);
+        DispatchTable dispatchTable = new DispatchTable();
+
+        System.out.printf("[not-trace] setup pc=0x%08X d0=0x%08X sr=0x%04X%n",
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue());
+
+        int fetchedOpword = bus.readWord(cpu.registers().programCounter());
+        System.out.printf("[not-trace] fetch opword=0x%04X pc=0x%08X%n",
+            fetchedOpword, cpu.registers().programCounter());
+
+        DecodedInstruction decoded = new Decoder().decode(
+            fetchedOpword,
+            bus,
+            cpu.registers().programCounter() + 2
+        );
+        System.out.printf("[not-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
+            decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
+
+        Op handler = dispatchTable.lookup(decoded.opcode());
+        System.out.printf("[not-trace] dispatch handler=%s%n", handler.getClass().getSimpleName());
+
+        M68kCpu.StepReport report = cpu.step(
+            bus,
+            dispatchTable,
+            message -> System.out.println("[not-trace] execute " + message)
+        );
+
+        System.out.printf("[not-trace] result success=%s cycles=%d finalPc=0x%08X d0=0x%08X sr=0x%04X X=%s N=%s Z=%s V=%s C=%s%n",
+            report.success(),
+            report.cycles(),
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue(),
+            cpu.statusRegister().isExtendSet(),
+            cpu.statusRegister().isNegativeSet(),
+            cpu.statusRegister().isZeroSet(),
+            cpu.statusRegister().isOverflowSet(),
+            cpu.statusRegister().isCarrySet());
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesWritesDataRegisterAndUpdatesFlagsForOriImmediateToDataRegister()
+            throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureOriScenario(cpu);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(
+                busWithWords(0x0000_1000, ORI_B_D0, ORI_BYTE_IMMEDIATE),
+                new DispatchTable(),
+                logs::add
+        );
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(ORI_BYTE_INITIAL, report.before().dataRegister(0));
+        assertEquals(0x0000_1004, report.after().programCounter());
+        assertEquals(ORI_BYTE_RESULT, report.after().dataRegister(0));
+        assertEquals(ORI_BYTE_RESULT, cpu.registers().data(0));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ORI"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001004"));
+    }
+
+    @Test
+    void traceOriImmediateToDataRegisterPipelineToConsole() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureOriScenario(cpu);
+        AddressSpace bus = busWithWords(0x0000_1000, ORI_B_D0, ORI_BYTE_IMMEDIATE);
+        DispatchTable dispatchTable = new DispatchTable();
+
+        System.out.printf("[ori-trace] setup pc=0x%08X d0=0x%08X sr=0x%04X%n",
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue());
+
+        int fetchedOpword = bus.readWord(cpu.registers().programCounter());
+        System.out.printf("[ori-trace] fetch opword=0x%04X pc=0x%08X%n",
+            fetchedOpword, cpu.registers().programCounter());
+
+        DecodedInstruction decoded = new Decoder().decode(
+            fetchedOpword,
+            bus,
+            cpu.registers().programCounter() + 2
+        );
+        System.out.printf("[ori-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
+            decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
+
+        Op handler = dispatchTable.lookup(decoded.opcode());
+        System.out.printf("[ori-trace] dispatch handler=%s%n", handler.getClass().getSimpleName());
+
+        M68kCpu.StepReport report = cpu.step(
+            bus,
+            dispatchTable,
+            message -> System.out.println("[ori-trace] execute " + message)
+        );
+
+        System.out.printf("[ori-trace] result success=%s cycles=%d finalPc=0x%08X d0=0x%08X sr=0x%04X X=%s N=%s Z=%s V=%s C=%s%n",
+            report.success(),
+            report.cycles(),
+            cpu.registers().programCounter(),
+            cpu.registers().data(0),
+            cpu.statusRegister().rawValue(),
+            cpu.statusRegister().isExtendSet(),
+            cpu.statusRegister().isNegativeSet(),
+            cpu.statusRegister().isZeroSet(),
+            cpu.statusRegister().isOverflowSet(),
+            cpu.statusRegister().isCarrySet());
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1004, cpu.registers().programCounter());
     }
 
     @Test
@@ -198,10 +441,16 @@ class M68kCpuStepTest {
     }
 
     private static AddressSpace busWithOpword(int baseAddress, int opword) {
+        return busWithWords(baseAddress, opword);
+    }
+
+    private static AddressSpace busWithWords(int baseAddress, int... words) {
         Ram ram = new Ram(baseAddress, 64);
         AddressSpace bus = new AddressSpace();
         bus.addRegion(ram);
-        bus.writeWord(baseAddress, opword);
+        for (int index = 0; index < words.length; index++) {
+            bus.writeWord(baseAddress + (index * 2), words[index]);
+        }
         return bus;
     }
 
@@ -210,6 +459,33 @@ class M68kCpuStepTest {
         cpu.statusRegister().setExtend(true);
         cpu.statusRegister().setCarry(true);
         cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
+    }
+
+    private static void configureClrScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, CLR_BYTE_INITIAL);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setZero(false);
+    }
+
+    private static void configureNotScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, NOT_BYTE_INITIAL);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setNegative(false);
+        cpu.statusRegister().setZero(true);
+    }
+
+    private static void configureOriScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, ORI_BYTE_INITIAL);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setNegative(false);
         cpu.statusRegister().setZero(true);
     }
 }
