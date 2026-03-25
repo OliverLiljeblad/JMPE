@@ -4,6 +4,7 @@
 // Syntax: CHK <ea>, Dn
 // Sizes: Word (.W) and Long (.L) [.L only on 68020+]
 
+import com.JMPE.cpu.CPU;
 
 public class CHK {
 
@@ -17,7 +18,7 @@ public class CHK {
         int upperBound = cpu.readOperand(eaMode, eaReg, size);
         int regVal     = cpu.getDataRegister(dn);
 
-        if (size == SIZE_WORD) {
+        if (size == SIZE_WORD | size== SIZE_LONG) {
             upperBound = signExtendWord(upperBound);
             regVal     = signExtendWord(regVal);
         }
