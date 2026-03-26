@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import java.util.Objects;
 
 /**
@@ -22,7 +23,7 @@ public final class Tst {
     public static int execute(
             Size size,
             OperandReader reader,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(reader, "reader must not be null");

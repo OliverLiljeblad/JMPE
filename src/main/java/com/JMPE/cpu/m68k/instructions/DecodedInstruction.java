@@ -28,7 +28,7 @@ import com.JMPE.cpu.m68k.Size;
  *   <li><b>TRAP</b>  — trap vector number (0–15)</li>
  *   <li><b>STOP</b>  — the immediate value loaded into SR</li>
  *   <li><b>LINK</b>  — signed 16-bit stack displacement</li>
- *   <li><b>LINEA / LINEF</b> — the raw opword (full 16 bits)</li>
+ *   <li><b>LINE_A_TRAP / LINE_F_TRAP</b> — the raw opword (full 16 bits)</li>
  *   <li>All other instructions — {@code 0} (unused)</li>
  * </ul>
  *

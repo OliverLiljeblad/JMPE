@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 
 import java.util.Objects;
 import java.util.function.IntConsumer;
@@ -16,19 +17,6 @@ public final class Move {
     public static final int DEFAULT_CYCLES = 4;
 
     private Move() {
-    }
-
-    /**
-     * CCR mutator surface for MOVE/MOVEQ behavior.
-     * <p>
-     * MOVE and MOVEQ set N and Z from the sized result, clear V and C, and do not modify X.
-     * </p>
-     */
-    public interface ConditionCodes {
-        void setNegative(boolean value);
-        void setZero(boolean value);
-        void setOverflow(boolean value);
-        void setCarry(boolean value);
     }
 
     /**

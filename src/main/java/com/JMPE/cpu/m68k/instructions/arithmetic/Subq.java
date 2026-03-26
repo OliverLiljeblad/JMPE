@@ -1,7 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
 
@@ -28,7 +27,7 @@ public final class Subq {
         void write(int value);
     }
 
-    public interface ConditionCodes extends Move.ConditionCodes {
+    public interface ConditionCodes extends com.JMPE.cpu.m68k.instructions.ConditionCodes {
         void setExtend(boolean value);
     }
 

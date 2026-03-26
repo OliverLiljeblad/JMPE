@@ -1,7 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 
 import java.util.Objects;
 
@@ -30,7 +30,7 @@ public final class Cmp {
         Size size,
         SourceReader sourceReader,
         DestinationReader destinationReader,
-        Move.ConditionCodes conditionCodes
+        ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(sourceReader, "sourceReader must not be null");
@@ -55,7 +55,7 @@ public final class Cmp {
         int destinationValue,
         int sourceValue,
         int result,
-        Move.ConditionCodes conditionCodes
+        ConditionCodes conditionCodes
     ) {
         boolean sourceNegative = size.isNegative(sourceValue);
         boolean destinationNegative = size.isNegative(destinationValue);

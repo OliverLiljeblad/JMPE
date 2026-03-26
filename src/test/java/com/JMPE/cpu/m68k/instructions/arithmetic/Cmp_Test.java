@@ -1,7 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -53,7 +53,7 @@ public class Cmp_Test {
         );
     }
 
-    private static final class TrackingConditionCodes implements Move.ConditionCodes {
+    private static final class TrackingConditionCodes implements ConditionCodes {
         private boolean negative;
         private boolean zero;
         private boolean overflow;

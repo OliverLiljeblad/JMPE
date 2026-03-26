@@ -1,7 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
 
@@ -38,7 +37,7 @@ public final class Sub {
      * CMP uses a separate code path and does NOT set X.
      * </p>
      */
-    public interface ConditionCodes extends Move.ConditionCodes {
+    public interface ConditionCodes extends com.JMPE.cpu.m68k.instructions.ConditionCodes {
         void setExtend(boolean value);
     }
 
