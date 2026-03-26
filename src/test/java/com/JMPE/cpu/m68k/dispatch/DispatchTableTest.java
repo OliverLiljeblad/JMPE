@@ -10,6 +10,30 @@ import org.junit.jupiter.api.Test;
 
 class DispatchTableTest {
     @Test
+    void providesBuiltInAndiHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.ANDI));
+        assertTrue(dispatchTable.lookup(Opcode.ANDI) instanceof AndiOp);
+    }
+
+    @Test
+    void providesBuiltInAndiToCcrHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.ANDI_TO_CCR));
+        assertTrue(dispatchTable.lookup(Opcode.ANDI_TO_CCR) instanceof AndiToCcrOp);
+    }
+
+    @Test
+    void providesBuiltInAndiToSrHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.ANDI_TO_SR));
+        assertTrue(dispatchTable.lookup(Opcode.ANDI_TO_SR) instanceof AndiToSrOp);
+    }
+
+    @Test
     void providesBuiltInClrHandler() {
         DispatchTable dispatchTable = new DispatchTable();
 

@@ -2,6 +2,7 @@ package com.JMPE.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.JMPE.cpu.m68k.Decoder;
@@ -9,6 +10,7 @@ import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
+import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.machine.MacPlusMachine;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,19 @@ class SmallProgramTest {
     private static final int NOT_B_D0 = 0x4600;
     private static final int NOT_BYTE_INITIAL = 0x1234_5600;
     private static final int NOT_BYTE_RESULT = 0x1234_56FF;
+    private static final int ANDI_B_D0 = 0x0200;
+    private static final int ANDI_BYTE_IMMEDIATE = 0x0080;
+    private static final int ANDI_BYTE_INITIAL = 0x1234_56FF;
+    private static final int ANDI_BYTE_RESULT = 0x1234_5680;
+    private static final int ANDI_TO_CCR = 0x023C;
+    private static final int ANDI_TO_CCR_IMMEDIATE = 0x0015;
+    private static final int ANDI_TO_CCR_INITIAL_SR = 0x251F;
+    private static final int ANDI_TO_CCR_RESULT_SR = 0x2515;
+    private static final int ANDI_TO_SR = 0x027C;
+    private static final int ANDI_TO_SR_IMMEDIATE = 0x20F0;
+    private static final int ANDI_TO_SR_INITIAL_SR = 0xA71F;
+    private static final int ANDI_TO_SR_RESULT_SR = 0x2010;
+    private static final int ANDI_TO_SR_USER_MODE_SR = 0x071F;
     private static final int ORI_B_D0 = 0x0000;
     private static final int ORI_BYTE_IMMEDIATE = 0x0080;
     private static final int ORI_BYTE_INITIAL = 0x1234_5600;
@@ -214,6 +229,147 @@ class SmallProgramTest {
         assertEquals(INITIAL_PROGRAM_COUNTER + 2, machine.cpu().registers().programCounter());
         assertEquals(4, report.cycles());
         assertEquals(NOT_BYTE_RESULT, machine.cpu().registers().data(0));
+    }
+
+    @Test
+    void stepsAndiImmediateToDataRegisterThroughMachineLayer() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+                romBytesWithInstructionWords(ANDI_B_D0, ANDI_BYTE_IMMEDIATE),
+                ROM_BASE
+        );
+        configureAndiScenario(machine.cpu());
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(ANDI_BYTE_INITIAL, report.before().dataRegister(0));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, report.after().programCounter());
+        assertEquals(ANDI_BYTE_RESULT, report.after().dataRegister(0));
+        assertEquals(ANDI_BYTE_RESULT, machine.cpu().registers().data(0));
+        assertTrue(machine.cpu().statusRegister().isNegativeSet());
+        assertFalse(machine.cpu().statusRegister().isZeroSet());
+        assertFalse(machine.cpu().statusRegister().isOverflowSet());
+        assertFalse(machine.cpu().statusRegister().isCarrySet());
+        assertTrue(machine.cpu().statusRegister().isExtendSet());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI"));
+    }
+
+    @Test
+    void traceAndiImmediateToDataRegisterThroughMachineLayerToConsole() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+                romBytesWithInstructionWords(ANDI_B_D0, ANDI_BYTE_IMMEDIATE),
+                ROM_BASE
+        );
+        configureAndiScenario(machine.cpu());
+
+        System.out.printf("[machine-andi-trace] machine romBase=0x%08X bus=%s%n",
+            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+        System.out.printf("[machine-andi-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
+            machine.cpu().registers().stackPointer(),
+            machine.cpu().registers().programCounter(),
+            machine.cpu().registers().data(0),
+            machine.cpu().statusRegister().rawValue());
+        System.out.printf("[machine-andi-trace] fetch opword=0x%04X pc=0x%08X%n",
+            machine.bus().readWord(machine.cpu().registers().programCounter()),
+            machine.cpu().registers().programCounter());
+
+        DecodedInstruction decoded = new Decoder().decode(
+            machine.bus().readWord(machine.cpu().registers().programCounter()),
+            machine.bus(),
+            machine.cpu().registers().programCounter() + 2
+        );
+        System.out.printf("[machine-andi-trace] decode opcode=%s size=%s src=%s dst=%s nextPc=0x%08X%n",
+            decoded.opcode(), decoded.size(), decoded.src(), decoded.dst(), decoded.nextPc());
+
+        M68kCpu.StepReport report = machine.step(
+            message -> System.out.println("[machine-andi-trace] execute " + message)
+        );
+
+        System.out.printf("[machine-andi-trace] result success=%s cycles=%d finalPc=0x%08X d0=0x%08X sr=0x%04X X=%s N=%s Z=%s V=%s C=%s%n",
+            report.success(),
+            report.cycles(),
+            machine.cpu().registers().programCounter(),
+            machine.cpu().registers().data(0),
+            machine.cpu().statusRegister().rawValue(),
+            machine.cpu().statusRegister().isExtendSet(),
+            machine.cpu().statusRegister().isNegativeSet(),
+            machine.cpu().statusRegister().isZeroSet(),
+            machine.cpu().statusRegister().isOverflowSet(),
+            machine.cpu().statusRegister().isCarrySet());
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
+        assertEquals(4, report.cycles());
+        assertEquals(ANDI_BYTE_RESULT, machine.cpu().registers().data(0));
+    }
+
+    @Test
+    void stepsAndiToCcrThroughMachineLayer() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+                romBytesWithInstructionWords(ANDI_TO_CCR, ANDI_TO_CCR_IMMEDIATE),
+                ROM_BASE
+        );
+        configureAndiToCcrScenario(machine.cpu());
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(ANDI_TO_CCR_INITIAL_SR, report.before().statusRegister());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, report.after().programCounter());
+        assertEquals(ANDI_TO_CCR_RESULT_SR, report.after().statusRegister());
+        assertEquals(ANDI_TO_CCR_RESULT_SR, machine.cpu().statusRegister().rawValue());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI_TO_CCR"));
+    }
+
+    @Test
+    void stepsAndiToSrThroughMachineLayer() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+                romBytesWithInstructionWords(ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE),
+                ROM_BASE
+        );
+        configureAndiToSrScenario(machine.cpu());
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(ANDI_TO_SR_INITIAL_SR, report.before().statusRegister());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, report.after().programCounter());
+        assertEquals(ANDI_TO_SR_RESULT_SR, report.after().statusRegister());
+        assertEquals(ANDI_TO_SR_RESULT_SR, machine.cpu().statusRegister().rawValue());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI_TO_SR"));
+    }
+
+    @Test
+    void rejectsAndiToSrInUserModeThroughMachineLayer() {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+                romBytesWithInstructionWords(ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE),
+                ROM_BASE
+        );
+        configureAndiToSrUserModeScenario(machine.cpu());
+        List<String> logs = new ArrayList<>();
+
+        PrivilegeViolation thrown = assertThrows(
+                PrivilegeViolation.class,
+                () -> machine.step(logs::add)
+        );
+
+        assertEquals("ANDI to SR requires supervisor mode", thrown.getMessage());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
+        assertEquals(ANDI_TO_SR_USER_MODE_SR, machine.cpu().statusRegister().rawValue());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] ERR op=ANDI_TO_SR"));
     }
 
     @Test
@@ -409,6 +565,27 @@ class SmallProgramTest {
         cpu.statusRegister().setOverflow(true);
         cpu.statusRegister().setNegative(false);
         cpu.statusRegister().setZero(true);
+    }
+
+    private static void configureAndiScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, ANDI_BYTE_INITIAL);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setNegative(false);
+        cpu.statusRegister().setZero(true);
+    }
+
+    private static void configureAndiToCcrScenario(M68kCpu cpu) {
+        cpu.statusRegister().setRawValue(ANDI_TO_CCR_INITIAL_SR);
+    }
+
+    private static void configureAndiToSrScenario(M68kCpu cpu) {
+        cpu.statusRegister().setRawValue(ANDI_TO_SR_INITIAL_SR);
+    }
+
+    private static void configureAndiToSrUserModeScenario(M68kCpu cpu) {
+        cpu.statusRegister().setRawValue(ANDI_TO_SR_USER_MODE_SR);
     }
 
     private static void configureOriScenario(M68kCpu cpu) {

@@ -44,6 +44,12 @@ To see the current end-to-end trace flows with only the important lines:
 # Machine-layer NOT.B D0 trace
 ./tools/machine-not-trace.sh
 
+# CPU-layer ANDI.B #$80,D0 trace
+./tools/andi-trace.sh
+
+# Machine-layer ANDI.B #$80,D0 trace
+./tools/machine-andi-trace.sh
+
 # CPU-layer ORI.B #$80,D0 trace
 ./tools/ori-trace.sh
 
