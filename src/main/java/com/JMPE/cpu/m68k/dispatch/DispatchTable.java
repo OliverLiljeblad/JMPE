@@ -90,7 +90,14 @@ public final class DispatchTable {
     }
 
     private void registerBuiltIns() {
+        register(Opcode.ANDI, new AndiOp());
+        register(Opcode.ANDI_TO_CCR, new AndiToCcrOp());
+        register(Opcode.ANDI_TO_SR, new AndiToSrOp());
         register(Opcode.CLR, new ClrOp());
+        register(Opcode.CMPI, new CmpiOp());
+        register(Opcode.EORI, new EoriOp());
+        register(Opcode.EORI_TO_CCR, new EoriToCcrOp());
+        register(Opcode.EORI_TO_SR, new EoriToSrOp());
         register(Opcode.NOP, new NopOp());
         register(Opcode.NOT, new NotOp());
         register(Opcode.ORI, new OriOp());

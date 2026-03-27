@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -48,7 +49,7 @@ public class Tst_Test {
         assertThrows(NullPointerException.class, () -> Tst.execute(Size.BYTE, () -> 0, null));
     }
 
-    private static final class TrackingConditionCodes implements Move.ConditionCodes {
+    private static final class TrackingConditionCodes implements ConditionCodes {
         private boolean negative;
         private boolean zero;
         private boolean overflow;

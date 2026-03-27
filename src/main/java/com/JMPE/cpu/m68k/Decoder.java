@@ -407,7 +407,7 @@ public final class Decoder {
                         0, cursor[0]);
                 case WORD ->
                     // ORI/ANDI/EORI #n, SR — word immediate, SR destination.
-                    // These are privileged; ExceptionDispatcher checks SR-write opcodes.
+                    // These are privileged; the runtime executor checks supervisor mode.
                     new DecodedInstruction(
                         toSrOpcode(baseOpcode), Size.WORD,
                         EffectiveAddress.immediate(imm),

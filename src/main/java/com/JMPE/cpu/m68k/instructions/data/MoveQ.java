@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import java.util.Objects;
 
 /**
@@ -37,7 +38,7 @@ public final class MoveQ {
             int destinationRegister,
             int immediate8,
             DataRegisterWriter registerWriter,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(registerWriter, "registerWriter must not be null");
         Objects.requireNonNull(conditionCodes, "conditionCodes must not be null");

@@ -1,7 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
 
@@ -32,10 +31,10 @@ public final class Add {
     }
 
     /**
-     * Extends Move.ConditionCodes to include the X (Extend) flag, which ADD must set equal to carry.
+     * Extends the shared NZVC contract to include the X (Extend) flag, which ADD must set equal to carry.
      * This mirrors the Addq.ConditionCodes pattern and is required for correct multi-precision arithmetic (e.g., ADDX).
      */
-    public interface ConditionCodes extends Move.ConditionCodes {
+    public interface ConditionCodes extends com.JMPE.cpu.m68k.instructions.ConditionCodes {
         void setExtend(boolean value);
     }
 

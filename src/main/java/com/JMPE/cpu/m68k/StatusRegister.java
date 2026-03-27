@@ -2,9 +2,9 @@ package com.JMPE.cpu.m68k;
 
 import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addq;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Sub;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Subq;
-import com.JMPE.cpu.m68k.instructions.data.Move;
 
 /**
  * Motorola 68000 status register model.
@@ -114,7 +114,7 @@ public final class StatusRegister {
     /**
      * CCR adapter for MOVE/CMP-like helpers that only update N/Z/V/C.
      */
-    public Move.ConditionCodes moveConditionCodes() {
+    public ConditionCodes moveConditionCodes() {
         return moveConditionCodes;
     }
 
@@ -201,7 +201,7 @@ public final class StatusRegister {
         };
     }
 
-    private final class MoveConditionCodes implements Move.ConditionCodes {
+    private final class MoveConditionCodes implements ConditionCodes {
         @Override
         public void setNegative(boolean value) {
             StatusRegister.this.setNegative(value);

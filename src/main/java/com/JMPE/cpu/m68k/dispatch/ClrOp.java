@@ -2,7 +2,6 @@ package com.JMPE.cpu.m68k.dispatch;
 
 import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
-import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
 import com.JMPE.cpu.m68k.instructions.data.Clr;
@@ -35,7 +34,7 @@ public final class ClrOp implements Op {
         EffectiveAddress.DataReg destination = validate(decoded);
         return Clr.execute(
                 decoded.size(),
-                value -> writeDataRegister(cpu, destination.reg(), decoded.size(), value),
+                value -> DataRegisterWriter.write(cpu, destination.reg(), decoded.size(), value),
                 cpu.statusRegister().moveConditionCodes()
         );
     }
@@ -64,15 +63,4 @@ public final class ClrOp implements Op {
         return dataRegister;
     }
 
-    private static void writeDataRegister(M68kCpu cpu, int register, Size size, int value) {
-        int currentValue = cpu.registers().data(register);
-        int maskedValue = size.mask(value);
-        int nextValue = switch (size) {
-            case BYTE -> (currentValue & 0xFFFF_FF00) | maskedValue;
-            case WORD -> (currentValue & 0xFFFF_0000) | maskedValue;
-            case LONG -> maskedValue;
-            case UNSIZED -> throw new IllegalArgumentException("CLR data-register writes require a sized operation");
-        };
-        cpu.registers().setData(register, nextValue);
-    }
 }

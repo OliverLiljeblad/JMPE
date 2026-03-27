@@ -4,17 +4,17 @@ import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
-import com.JMPE.cpu.m68k.instructions.logic.Or;
+import com.JMPE.cpu.m68k.instructions.logic.And;
 
 import java.util.Objects;
 
 /**
- * Dispatch-layer executor for decoded {@code ORI} instructions.
+ * Dispatch-layer executor for decoded {@code ANDI} instructions.
  *
  * <p>
- * The raw {@link Or} helper only knows how to bitwise-OR a sized source and
- * destination operand, write the result, and update CCR flags. {@code OriOp} is
- * the runtime bridge that validates the decoded shape and resolves the
+ * The raw {@link And} helper only knows how to bitwise-AND a sized source and
+ * destination operand, write the result, and update CCR flags. {@code AndiOp}
+ * is the runtime bridge that validates the decoded shape and resolves the
  * currently supported immediate-source/data-register-destination form from live
  * CPU state.
  * </p>
@@ -26,14 +26,14 @@ import java.util.Objects;
  * operand access layer exists in the dispatch path.
  * </p>
  */
-public final class OriOp implements Op {
+public final class AndiOp implements Op {
     @Override
     public int execute(M68kCpu cpu, DecodedInstruction decoded) {
         Objects.requireNonNull(cpu, "cpu must not be null");
         Objects.requireNonNull(decoded, "decoded must not be null");
 
         Operands operands = validate(decoded);
-        return Or.execute(
+        return And.execute(
                 decoded.size(),
                 operands.source()::value,
                 () -> cpu.registers().data(operands.destination().reg()),
@@ -43,26 +43,26 @@ public final class OriOp implements Op {
     }
 
     private static Operands validate(DecodedInstruction decoded) {
-        if (decoded.opcode() != Opcode.ORI) {
-            throw new IllegalArgumentException("OriOp requires opcode ORI but was " + decoded.opcode());
+        if (decoded.opcode() != Opcode.ANDI) {
+            throw new IllegalArgumentException("AndiOp requires opcode ANDI but was " + decoded.opcode());
         }
         if (!decoded.size().isSized()) {
-            throw new IllegalArgumentException("ORI must be decoded with a sized operand");
+            throw new IllegalArgumentException("ANDI must be decoded with a sized operand");
         }
         if (!(decoded.src() instanceof EffectiveAddress.Immediate immediate)) {
             throw new IllegalArgumentException(
-                    "ORI runtime currently supports immediate source only but was " + decoded.src()
+                    "ANDI runtime currently supports immediate source only but was " + decoded.src()
             );
         }
         if (decoded.hasNoDestination()) {
-            throw new IllegalArgumentException("ORI must have a destination operand");
+            throw new IllegalArgumentException("ANDI must have a destination operand");
         }
         if (decoded.extension() != 0) {
-            throw new IllegalArgumentException("ORI must not carry an extension payload");
+            throw new IllegalArgumentException("ANDI must not carry an extension payload");
         }
         if (!(decoded.dst() instanceof EffectiveAddress.DataReg dataRegister)) {
             throw new IllegalArgumentException(
-                    "ORI runtime currently supports data-register-direct destination only but was " + decoded.dst()
+                    "ANDI runtime currently supports data-register-direct destination only but was " + decoded.dst()
             );
         }
         return new Operands(immediate, dataRegister);

@@ -44,17 +44,38 @@ To see the current end-to-end trace flows with only the important lines:
 # Machine-layer NOT.B D0 trace
 ./tools/machine-not-trace.sh
 
+# CPU-layer ANDI.B #$80,D0 trace
+./tools/andi-trace.sh
+
+# Machine-layer ANDI.B #$80,D0 trace
+./tools/machine-andi-trace.sh
+
 # CPU-layer ORI.B #$80,D0 trace
 ./tools/ori-trace.sh
 
 # Machine-layer ORI.B #$80,D0 trace
 ./tools/machine-ori-trace.sh
 
+# CPU-layer EORI.B #$80,D0 trace
+./tools/eori-trace.sh
+
+# Machine-layer EORI.B #$80,D0 trace
+./tools/machine-eori-trace.sh
+
+# CPU-layer CMPI.B #$01,D0 trace
+./tools/cmpi-trace.sh
+
+# Machine-layer CMPI.B #$01,D0 trace
+./tools/machine-cmpi-trace.sh
+
 # CPU-layer TST.B D0 trace
 ./tools/tst-trace.sh
 
 # Machine-layer TST.B D0 trace
 ./tools/machine-tst-trace.sh
+
+# Machine-layer 10-instruction checkpoint trace
+./tools/machine-ten-step-trace.sh
 ```
 
 ## Project layout

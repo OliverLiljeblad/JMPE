@@ -1,20 +1,23 @@
-// 
-// CHK - Check Register Against Bounds
-
-// Syntax: CHK <ea>, Dn
-// Sizes: Word (.W) and Long (.L) [.L only on 68020+]
-
-package com.JMPE.cpu.m68k.instructions.data;
+package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
 
 import java.util.Objects;
 
-public final class CHK {
+/**
+ * Implements the Motorola 68000 {@code CHK <ea>,Dn} instruction helper for the Mac Plus target.
+ *
+ * <p>
+ * The Macintosh Plus uses a 68000 CPU, so only the word-sized {@code CHK.W} form is valid here.
+ * The 68020+ long-sized variant is intentionally rejected by this helper.
+ * </p>
+ */
+public final class Chk {
+    public static final int CHK_EXCEPTION_VECTOR = 6;
 
     public static final int EXECUTION_CYCLES = 10;
 
-    private CHK() {
+    private Chk() {
     }
 
     @FunctionalInterface
@@ -52,26 +55,25 @@ public final class CHK {
         Objects.requireNonNull(exceptionTrigger, "exceptionTrigger must not be null");
         Objects.requireNonNull(conditionCodes, "conditionCodes must not be null");
 
-        int upperBound = operandReader.read(eaMode, eaReg, size);
-        int regVal = registerReader.read(dn);
+        requireMacPlusWordSize(size);
 
-        if (size == Size.WORD || size == Size.LONG) {
-            upperBound = signExtendWord(upperBound);
-            regVal = signExtendWord(regVal);
-        }
+        int upperBound = Size.WORD.signExtend(operandReader.read(eaMode, eaReg, Size.WORD));
+        int regVal = Size.WORD.signExtend(registerReader.read(dn));
 
         if (regVal < 0) {
             conditionCodes.setN(true);
-            exceptionTrigger.trigger(6);
+            exceptionTrigger.trigger(CHK_EXCEPTION_VECTOR);
         } else if (regVal > upperBound) {
             conditionCodes.setN(false);
-            exceptionTrigger.trigger(6);
+            exceptionTrigger.trigger(CHK_EXCEPTION_VECTOR);
         }
 
         return EXECUTION_CYCLES;
     }
 
-    private static int signExtendWord(int value) {
-        return (value << 16) >> 16;
+    private static void requireMacPlusWordSize(Size size) {
+        if (size != Size.WORD) {
+            throw new IllegalArgumentException("CHK on the Macintosh Plus 68000 supports only WORD size");
+        }
     }
 }
