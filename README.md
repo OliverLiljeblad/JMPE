@@ -73,6 +73,9 @@ To see the current end-to-end trace flows with only the important lines:
 
 # Machine-layer TST.B D0 trace
 ./tools/machine-tst-trace.sh
+
+# Machine-layer 10-instruction checkpoint trace
+./tools/machine-ten-step-trace.sh
 ```
 
 ## Project layout

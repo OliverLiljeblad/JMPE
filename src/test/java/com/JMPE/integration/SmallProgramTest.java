@@ -64,6 +64,24 @@ class SmallProgramTest {
     private static final int CMPI_BYTE_IMMEDIATE = 0x0001;
     private static final int CMPI_BYTE_INITIAL = 0x1234_5600;
     private static final int TST_B_D0 = 0x4A00;
+    private static final int TEN_INSTRUCTION_PROGRAM_INITIAL_SR = 0x271F;
+    private static final int TEN_INSTRUCTION_PROGRAM_FINAL_D0 = 0x1234_5600;
+    private static final int TEN_INSTRUCTION_PROGRAM_FINAL_SR = 0x2010;
+    private static final int TEN_INSTRUCTION_PROGRAM_FINAL_PC = INITIAL_PROGRAM_COUNTER + 0x20;
+    private static final int TEN_INSTRUCTION_PROGRAM_STEP_COUNT = 10;
+    private static final int TEN_INSTRUCTION_PROGRAM_TOTAL_CYCLES = 40;
+    private static final List<String> TEN_INSTRUCTION_PROGRAM_OPCODES = List.of(
+        "NOP",
+        "CLR",
+        "NOT",
+        "ANDI",
+        "ANDI_TO_CCR",
+        "ORI",
+        "EORI",
+        "CMPI",
+        "TST",
+        "ANDI_TO_SR"
+    );
 
     @Test
     void stepsNopThroughMachineLayer() throws IllegalInstructionException {
@@ -748,8 +766,180 @@ class SmallProgramTest {
         assertEquals(4, report.cycles());
     }
 
+    @Test
+    void stepsTenInstructionProgramThroughMachineLayer() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithInstructionWords(tenInstructionProgramWords()),
+            ROM_BASE
+        );
+        configureTenInstructionProgramScenario(machine.cpu());
+        List<String> logs = new ArrayList<>();
+        List<M68kCpu.StepReport> reports = new ArrayList<>();
+
+        for (int index = 0; index < TEN_INSTRUCTION_PROGRAM_STEP_COUNT; index++) {
+            reports.add(machine.step(logs::add));
+        }
+
+        assertEquals(TEN_INSTRUCTION_PROGRAM_STEP_COUNT, reports.size());
+        assertEquals(TEN_INSTRUCTION_PROGRAM_STEP_COUNT, logs.size());
+
+        int expectedPc = INITIAL_PROGRAM_COUNTER;
+        int totalCycles = 0;
+        for (int index = 0; index < TEN_INSTRUCTION_PROGRAM_STEP_COUNT; index++) {
+            M68kCpu.StepReport report = reports.get(index);
+            assertTrue(report.success());
+            assertEquals(expectedPc, report.before().programCounter());
+            assertTrue(logs.get(index).contains("[m68k-step] OK op=" + TEN_INSTRUCTION_PROGRAM_OPCODES.get(index)));
+
+            totalCycles += report.cycles();
+            expectedPc = report.after().programCounter();
+        }
+
+        assertEquals(TEN_INSTRUCTION_PROGRAM_INITIAL_SR, reports.get(0).before().statusRegister());
+        assertEquals(CLR_BYTE_INITIAL, reports.get(0).before().dataRegister(0));
+        assertEquals(TEN_INSTRUCTION_PROGRAM_TOTAL_CYCLES, totalCycles);
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_PC, expectedPc);
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_D0,
+            reports.get(TEN_INSTRUCTION_PROGRAM_STEP_COUNT - 1).after().dataRegister(0));
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_SR,
+            reports.get(TEN_INSTRUCTION_PROGRAM_STEP_COUNT - 1).after().statusRegister());
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_PC, machine.cpu().registers().programCounter());
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_D0, machine.cpu().registers().data(0));
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_SR, machine.cpu().statusRegister().rawValue());
+        assertTrue(machine.cpu().statusRegister().isExtendSet());
+        assertFalse(machine.cpu().statusRegister().isNegativeSet());
+        assertFalse(machine.cpu().statusRegister().isZeroSet());
+        assertFalse(machine.cpu().statusRegister().isOverflowSet());
+        assertFalse(machine.cpu().statusRegister().isCarrySet());
+    }
+
+    @Test
+    void traceTenInstructionProgramThroughMachineLayerToConsole() throws IllegalInstructionException {
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithInstructionWords(tenInstructionProgramWords()),
+            ROM_BASE
+        );
+        configureTenInstructionProgramScenario(machine.cpu());
+        List<M68kCpu.StepReport> reports = new ArrayList<>();
+        int successfulSteps = 0;
+        int totalCycles = 0;
+
+        System.out.printf("[machine-ten-step-trace] start steps=%d romBase=0x%08X bus=%s%n",
+            TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
+            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+        System.out.printf("[machine-ten-step-trace] initial ssp=%s pc=%s d0=%s sr=%s flags=%s%n",
+            formatHex(machine.cpu().registers().stackPointer()),
+            formatHex(machine.cpu().registers().programCounter()),
+            formatHex(machine.cpu().registers().data(0)),
+            formatWord(machine.cpu().statusRegister().rawValue()),
+            formatFlags(machine.cpu().statusRegister().rawValue()));
+
+        for (int index = 0; index < TEN_INSTRUCTION_PROGRAM_STEP_COUNT; index++) {
+            int stepNumber = index + 1;
+            int pc = machine.cpu().registers().programCounter();
+            int opword = machine.bus().readWord(pc);
+            DecodedInstruction decoded = new Decoder().decode(opword, machine.bus(), pc + 2);
+
+            System.out.printf("[machine-ten-step-trace] step=%d/%d running op=%s size=%s pc=%s d0=%s sr=%s flags=%s%n",
+                stepNumber,
+                TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
+                decoded.opcode(),
+                decoded.size(),
+                formatHex(pc),
+                formatHex(machine.cpu().registers().data(0)),
+                formatWord(machine.cpu().statusRegister().rawValue()),
+                formatFlags(machine.cpu().statusRegister().rawValue()));
+
+            try {
+                M68kCpu.StepReport report = machine.step();
+                reports.add(report);
+                successfulSteps++;
+                totalCycles += report.cycles();
+
+                System.out.printf("[machine-ten-step-trace] step=%d/%d result=SUCCESS op=%s cycles=%d pc=%s->%s d0=%s->%s sr=%s->%s flags=%s->%s%n",
+                    stepNumber,
+                    TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
+                    decoded.opcode(),
+                    report.cycles(),
+                    formatHex(report.before().programCounter()),
+                    formatHex(report.after().programCounter()),
+                    formatHex(report.before().dataRegister(0)),
+                    formatHex(report.after().dataRegister(0)),
+                    formatWord(report.before().statusRegister()),
+                    formatWord(report.after().statusRegister()),
+                    formatFlags(report.before().statusRegister()),
+                    formatFlags(report.after().statusRegister()));
+            } catch (IllegalInstructionException | RuntimeException exception) {
+                System.out.printf("[machine-ten-step-trace] step=%d/%d result=FAIL op=%s error=\"%s\" pc=%s d0=%s sr=%s flags=%s%n",
+                    stepNumber,
+                    TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
+                    decoded.opcode(),
+                    exception.getMessage() == null ? "<no-message>" : exception.getMessage(),
+                    formatHex(machine.cpu().registers().programCounter()),
+                    formatHex(machine.cpu().registers().data(0)),
+                    formatWord(machine.cpu().statusRegister().rawValue()),
+                    formatFlags(machine.cpu().statusRegister().rawValue()));
+                printTenInstructionProgramSummary(successfulSteps, totalCycles, machine.cpu());
+                throw exception;
+            }
+        }
+
+        printTenInstructionProgramSummary(successfulSteps, totalCycles, machine.cpu());
+
+        assertEquals(TEN_INSTRUCTION_PROGRAM_STEP_COUNT, successfulSteps);
+        assertEquals(TEN_INSTRUCTION_PROGRAM_STEP_COUNT, reports.size());
+        assertEquals(TEN_INSTRUCTION_PROGRAM_TOTAL_CYCLES, totalCycles);
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_PC, machine.cpu().registers().programCounter());
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_D0, machine.cpu().registers().data(0));
+        assertEquals(TEN_INSTRUCTION_PROGRAM_FINAL_SR, machine.cpu().statusRegister().rawValue());
+    }
+
+    private static void printTenInstructionProgramSummary(int successfulSteps, int totalCycles, M68kCpu cpu) {
+        System.out.printf("[machine-ten-step-trace] summary successful=%d/%d failed=%d totalCycles=%d finalPc=%s d0=%s sr=%s flags=%s%n",
+            successfulSteps,
+            TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
+            TEN_INSTRUCTION_PROGRAM_STEP_COUNT - successfulSteps,
+            totalCycles,
+            formatHex(cpu.registers().programCounter()),
+            formatHex(cpu.registers().data(0)),
+            formatWord(cpu.statusRegister().rawValue()),
+            formatFlags(cpu.statusRegister().rawValue()));
+    }
+
+    private static String formatFlags(int statusRegister) {
+        int ccr = statusRegister & 0xFF;
+        return "X=" + ((ccr >>> 4) & 1)
+            + ",N=" + ((ccr >>> 3) & 1)
+            + ",Z=" + ((ccr >>> 2) & 1)
+            + ",V=" + ((ccr >>> 1) & 1)
+            + ",C=" + (ccr & 1);
+    }
+
+    private static String formatHex(int value) {
+        return String.format("0x%08X", value);
+    }
+
+    private static String formatWord(int value) {
+        return String.format("0x%04X", value & 0xFFFF);
+    }
+
     private static byte[] romBytesWithSingleInstruction(int opword) {
         return romBytesWithInstructionWords(opword);
+    }
+
+    private static int[] tenInstructionProgramWords() {
+        return new int[] {
+            NOP,
+            CLR_B_D0,
+            NOT_B_D0,
+            ANDI_B_D0, ANDI_BYTE_IMMEDIATE,
+            ANDI_TO_CCR, ANDI_TO_CCR_IMMEDIATE,
+            ORI_B_D0, ORI_BYTE_IMMEDIATE,
+            EORI_B_D0, EORI_BYTE_IMMEDIATE,
+            CMPI_B_D0, CMPI_BYTE_IMMEDIATE,
+            TST_B_D0,
+            ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE
+        };
     }
 
     private static byte[] romBytesWithInstructionWords(int... words) {
@@ -858,5 +1048,10 @@ class SmallProgramTest {
         cpu.statusRegister().setOverflow(true);
         cpu.statusRegister().setNegative(false);
         cpu.statusRegister().setZero(true);
+    }
+
+    private static void configureTenInstructionProgramScenario(M68kCpu cpu) {
+        cpu.registers().setData(0, CLR_BYTE_INITIAL);
+        cpu.statusRegister().setRawValue(TEN_INSTRUCTION_PROGRAM_INITIAL_SR);
     }
 }
