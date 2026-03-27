@@ -56,6 +56,18 @@ To see the current end-to-end trace flows with only the important lines:
 # Machine-layer ORI.B #$80,D0 trace
 ./tools/machine-ori-trace.sh
 
+# CPU-layer EORI.B #$80,D0 trace
+./tools/eori-trace.sh
+
+# Machine-layer EORI.B #$80,D0 trace
+./tools/machine-eori-trace.sh
+
+# CPU-layer CMPI.B #$01,D0 trace
+./tools/cmpi-trace.sh
+
+# Machine-layer CMPI.B #$01,D0 trace
+./tools/machine-cmpi-trace.sh
+
 # CPU-layer TST.B D0 trace
 ./tools/tst-trace.sh
 

@@ -42,6 +42,38 @@ class DispatchTableTest {
     }
 
     @Test
+    void providesBuiltInCmpiHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.CMPI));
+        assertTrue(dispatchTable.lookup(Opcode.CMPI) instanceof CmpiOp);
+    }
+
+    @Test
+    void providesBuiltInEoriHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.EORI));
+        assertTrue(dispatchTable.lookup(Opcode.EORI) instanceof EoriOp);
+    }
+
+    @Test
+    void providesBuiltInEoriToCcrHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.EORI_TO_CCR));
+        assertTrue(dispatchTable.lookup(Opcode.EORI_TO_CCR) instanceof EoriToCcrOp);
+    }
+
+    @Test
+    void providesBuiltInEoriToSrHandler() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertTrue(dispatchTable.hasHandler(Opcode.EORI_TO_SR));
+        assertTrue(dispatchTable.lookup(Opcode.EORI_TO_SR) instanceof EoriToSrOp);
+    }
+
+    @Test
     void providesBuiltInNopHandler() {
         DispatchTable dispatchTable = new DispatchTable();
 
