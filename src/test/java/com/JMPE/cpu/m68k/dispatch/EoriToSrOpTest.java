@@ -17,7 +17,7 @@ class EoriToSrOpTest {
         M68kCpu cpu = new M68kCpu();
         cpu.statusRegister().setRawValue(0xA71F);
 
-        int cycles = new EoriToSrOp().execute(cpu, decodedEoriToSr(0x20F0));
+        int cycles = new EoriToSrOp().execute(cpu, null, decodedEoriToSr(0x20F0));
 
         assertEquals(4, cycles);
         assertEquals(0x87EF, cpu.statusRegister().rawValue());
@@ -30,7 +30,7 @@ class EoriToSrOpTest {
 
         PrivilegeViolation thrown = assertThrows(
                 PrivilegeViolation.class,
-                () -> new EoriToSrOp().execute(cpu, decodedEoriToSr(0x20F0))
+                () -> new EoriToSrOp().execute(cpu, null, decodedEoriToSr(0x20F0))
         );
 
         assertEquals("EORI to SR requires supervisor mode", thrown.getMessage());
@@ -57,8 +57,8 @@ class EoriToSrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, wrongSize));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, null, wrongSize));
     }
 
     @Test
@@ -90,15 +90,15 @@ class EoriToSrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, withWrongDestination));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, null, withWrongDestination));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToSrOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new EoriToSrOp().execute(null, decodedEoriToSr(0x20F0)));
-        assertThrows(NullPointerException.class, () -> new EoriToSrOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new EoriToSrOp().execute(null, null, decodedEoriToSr(0x20F0)));
+        assertThrows(NullPointerException.class, () -> new EoriToSrOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedEoriToSr(int immediate) {

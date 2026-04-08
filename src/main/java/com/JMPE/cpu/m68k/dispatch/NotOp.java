@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.dispatch;
 
+import com.JMPE.bus.Bus;
 import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
@@ -26,20 +27,21 @@ import java.util.Objects;
  */
 public final class NotOp implements Op {
     @Override
-    public int execute(M68kCpu cpu, DecodedInstruction decoded) {
+    public int execute(M68kCpu cpu, Bus bus, DecodedInstruction decoded) {
         Objects.requireNonNull(cpu, "cpu must not be null");
         Objects.requireNonNull(decoded, "decoded must not be null");
 
-        EffectiveAddress.DataReg destination = validate(decoded);
+        validate(decoded);
+        OperandResolver.Location dst = OperandResolver.resolveLocation(decoded.dst(), cpu, bus, decoded.size());
         return Not.execute(
                 decoded.size(),
-                () -> cpu.registers().data(destination.reg()),
-                value -> DataRegisterWriter.write(cpu, destination.reg(), decoded.size(), value),
+                dst::read,
+                dst::write,
                 cpu.statusRegister().moveConditionCodes()
         );
     }
 
-    private static EffectiveAddress.DataReg validate(DecodedInstruction decoded) {
+    private static void validate(DecodedInstruction decoded) {
         if (decoded.opcode() != Opcode.NOT) {
             throw new IllegalArgumentException("NotOp requires opcode NOT but was " + decoded.opcode());
         }
@@ -55,12 +57,5 @@ public final class NotOp implements Op {
         if (decoded.extension() != 0) {
             throw new IllegalArgumentException("NOT must not carry an extension payload");
         }
-        if (!(decoded.dst() instanceof EffectiveAddress.DataReg dataRegister)) {
-            throw new IllegalArgumentException(
-                    "NOT runtime currently supports data-register-direct destination only but was " + decoded.dst()
-            );
-        }
-        return dataRegister;
     }
-
 }

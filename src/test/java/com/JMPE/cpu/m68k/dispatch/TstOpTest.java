@@ -23,7 +23,7 @@ class TstOpTest {
         cpu.statusRegister().setOverflow(true);
         cpu.statusRegister().setZero(true);
 
-        int cycles = new TstOp().execute(cpu, decodedTst(Size.BYTE, EffectiveAddress.dataReg(0)));
+        int cycles = new TstOp().execute(cpu, null, decodedTst(Size.BYTE, EffectiveAddress.dataReg(0)));
 
         assertEquals(Tst.EXECUTION_CYCLES, cycles);
         assertEquals(0x0000_0080, cpu.registers().data(0));
@@ -54,8 +54,8 @@ class TstOpTest {
                 0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -77,14 +77,6 @@ class TstOpTest {
                 0,
                 0x0040_0102
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.TST,
-                Size.BYTE,
-                EffectiveAddress.none(),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0102
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.TST,
                 Size.BYTE,
@@ -94,16 +86,15 @@ class TstOpTest {
                 0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, withSource));
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, null, withSource));
+        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new TstOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new TstOp().execute(null, decodedTst(Size.BYTE, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new TstOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new TstOp().execute(null, null, decodedTst(Size.BYTE, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new TstOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedTst(Size size, EffectiveAddress destination) {

@@ -23,7 +23,7 @@ class CmpiOpTest {
         cpu.statusRegister().setOverflow(true);
         cpu.statusRegister().setZero(true);
 
-        int cycles = new CmpiOp().execute(cpu, decodedCmpi(Size.BYTE, 0x01, EffectiveAddress.dataReg(0)));
+        int cycles = new CmpiOp().execute(cpu, null, decodedCmpi(Size.BYTE, 0x01, EffectiveAddress.dataReg(0)));
 
         assertEquals(Cmp.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_5600, cpu.registers().data(0));
@@ -54,8 +54,8 @@ class CmpiOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -77,14 +77,6 @@ class CmpiOpTest {
                 0,
                 0x0040_0104
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.CMPI,
-                Size.BYTE,
-                EffectiveAddress.immediate(0x01),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0104
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.CMPI,
                 Size.BYTE,
@@ -94,16 +86,15 @@ class CmpiOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new CmpiOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new CmpiOp().execute(null, decodedCmpi(Size.BYTE, 0x01, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new CmpiOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new CmpiOp().execute(null, null, decodedCmpi(Size.BYTE, 0x01, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new CmpiOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedCmpi(Size size, int immediate, EffectiveAddress destination) {

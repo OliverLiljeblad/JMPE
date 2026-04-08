@@ -19,7 +19,7 @@ class NotOpTest {
         M68kCpu cpu = new M68kCpu();
         configureNotScenario(cpu, 0x1234_5678);
 
-        int cycles = new NotOp().execute(cpu, decodedNot(Size.BYTE, EffectiveAddress.dataReg(0)));
+        int cycles = new NotOp().execute(cpu, null, decodedNot(Size.BYTE, EffectiveAddress.dataReg(0)));
 
         assertEquals(Not.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_5687, cpu.registers().data(0));
@@ -31,7 +31,7 @@ class NotOpTest {
         M68kCpu cpu = new M68kCpu();
         configureNotScenario(cpu, 0x1234_5678);
 
-        int cycles = new NotOp().execute(cpu, decodedNot(Size.WORD, EffectiveAddress.dataReg(0)));
+        int cycles = new NotOp().execute(cpu, null, decodedNot(Size.WORD, EffectiveAddress.dataReg(0)));
 
         assertEquals(Not.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_A987, cpu.registers().data(0));
@@ -43,7 +43,7 @@ class NotOpTest {
         M68kCpu cpu = new M68kCpu();
         configureNotScenario(cpu, 0x1234_5678);
 
-        int cycles = new NotOp().execute(cpu, decodedNot(Size.LONG, EffectiveAddress.dataReg(0)));
+        int cycles = new NotOp().execute(cpu, null, decodedNot(Size.LONG, EffectiveAddress.dataReg(0)));
 
         assertEquals(Not.EXECUTION_CYCLES, cycles);
         assertEquals(0xEDCB_A987, cpu.registers().data(0));
@@ -70,8 +70,8 @@ class NotOpTest {
                 0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -93,14 +93,6 @@ class NotOpTest {
                 0,
                 0x0040_0102
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.NOT,
-                Size.BYTE,
-                EffectiveAddress.none(),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0102
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.NOT,
                 Size.BYTE,
@@ -110,16 +102,15 @@ class NotOpTest {
                 0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, withSource));
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, null, withSource));
+        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new NotOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new NotOp().execute(null, decodedNot(Size.BYTE, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new NotOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new NotOp().execute(null, null, decodedNot(Size.BYTE, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new NotOp().execute(new M68kCpu(), null, null));
     }
 
     private static void assertNotFlags(M68kCpu cpu) {

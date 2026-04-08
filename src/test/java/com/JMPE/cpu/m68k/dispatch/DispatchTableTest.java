@@ -108,7 +108,7 @@ class DispatchTableTest {
     @Test
     void returnsRegisteredHandlerFromEmptyTable() {
         DispatchTable dispatchTable = DispatchTable.empty();
-        Op handler = (cpu, decoded) -> 4;
+        Op handler = (cpu, bus, decoded) -> 4;
 
         dispatchTable.register(Opcode.RTS, handler);
 
@@ -118,7 +118,7 @@ class DispatchTableTest {
     @Test
     void tracksWhetherAnOpcodeHasAHandler() {
         DispatchTable dispatchTable = DispatchTable.empty();
-        Op handler = (cpu, decoded) -> 4;
+        Op handler = (cpu, bus, decoded) -> 4;
 
         assertFalse(dispatchTable.hasHandler(Opcode.RTS));
         dispatchTable.register(Opcode.RTS, handler);
@@ -129,8 +129,8 @@ class DispatchTableTest {
     @Test
     void rejectsDuplicateRegistration() {
         DispatchTable dispatchTable = DispatchTable.empty();
-        Op first = (cpu, decoded) -> 4;
-        Op second = (cpu, decoded) -> 8;
+        Op first = (cpu, bus, decoded) -> 4;
+        Op second = (cpu, bus, decoded) -> 8;
 
         dispatchTable.register(Opcode.RTS, first);
 
@@ -147,7 +147,7 @@ class DispatchTableTest {
     @Test
     void rejectsNullInputs() {
         DispatchTable dispatchTable = new DispatchTable();
-        Op handler = (cpu, decoded) -> 4;
+        Op handler = (cpu, bus, decoded) -> 4;
 
         assertThrows(NullPointerException.class, () -> dispatchTable.register(null, handler));
         assertThrows(NullPointerException.class, () -> dispatchTable.register(Opcode.NOP, null));

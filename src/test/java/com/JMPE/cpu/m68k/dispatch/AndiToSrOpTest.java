@@ -17,7 +17,7 @@ class AndiToSrOpTest {
         M68kCpu cpu = new M68kCpu();
         cpu.statusRegister().setRawValue(0xA71F);
 
-        int cycles = new AndiToSrOp().execute(cpu, decodedAndiToSr(0x20F0));
+        int cycles = new AndiToSrOp().execute(cpu, null, decodedAndiToSr(0x20F0));
 
         assertEquals(4, cycles);
         assertEquals(0x2010, cpu.statusRegister().rawValue());
@@ -30,7 +30,7 @@ class AndiToSrOpTest {
 
         PrivilegeViolation thrown = assertThrows(
                 PrivilegeViolation.class,
-                () -> new AndiToSrOp().execute(cpu, decodedAndiToSr(0x20F0))
+                () -> new AndiToSrOp().execute(cpu, null, decodedAndiToSr(0x20F0))
         );
 
         assertEquals("ANDI to SR requires supervisor mode", thrown.getMessage());
@@ -57,8 +57,8 @@ class AndiToSrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, wrongSize));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, null, wrongSize));
     }
 
     @Test
@@ -90,15 +90,15 @@ class AndiToSrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, withWrongDestination));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, null, withWrongDestination));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToSrOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new AndiToSrOp().execute(null, decodedAndiToSr(0x20F0)));
-        assertThrows(NullPointerException.class, () -> new AndiToSrOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new AndiToSrOp().execute(null, null, decodedAndiToSr(0x20F0)));
+        assertThrows(NullPointerException.class, () -> new AndiToSrOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedAndiToSr(int immediate) {

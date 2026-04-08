@@ -16,7 +16,7 @@ class AndiToCcrOpTest {
         M68kCpu cpu = new M68kCpu();
         cpu.statusRegister().setRawValue(0x251F);
 
-        int cycles = new AndiToCcrOp().execute(cpu, decodedAndiToCcr(0x0015));
+        int cycles = new AndiToCcrOp().execute(cpu, null, decodedAndiToCcr(0x0015));
 
         assertEquals(4, cycles);
         assertEquals(0x2515, cpu.statusRegister().rawValue());
@@ -43,8 +43,8 @@ class AndiToCcrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, wrongSize));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, null, wrongSize));
     }
 
     @Test
@@ -75,15 +75,15 @@ class AndiToCcrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, withWrongDestination));
-        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, null, withWrongDestination));
+        assertThrows(IllegalArgumentException.class, () -> new AndiToCcrOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new AndiToCcrOp().execute(null, decodedAndiToCcr(0x15)));
-        assertThrows(NullPointerException.class, () -> new AndiToCcrOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new AndiToCcrOp().execute(null, null, decodedAndiToCcr(0x15)));
+        assertThrows(NullPointerException.class, () -> new AndiToCcrOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedAndiToCcr(int immediate) {
