@@ -1,0 +1,132 @@
+package com.JMPE.cpu.m68k.dispatch;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import com.JMPE.bus.AddressSpace;
+import com.JMPE.bus.Ram;
+import com.JMPE.cpu.m68k.EffectiveAddress;
+import com.JMPE.cpu.m68k.M68kCpu;
+import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.exceptions.ChkException;
+import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
+import com.JMPE.cpu.m68k.instructions.Opcode;
+import org.junit.jupiter.api.Test;
+
+class ControlFlowAndMovemOpTest {
+    @Test
+    void leaOpComputesEffectiveAddress() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setAddress(1, 0x1000);
+
+        int cycles = new LeaOp().execute(cpu, null, decoded(Opcode.LEA, Size.LONG,
+            EffectiveAddress.addrRegIndDisp(1, 0x20), EffectiveAddress.addrReg(0), 0));
+
+        assertAll(
+            () -> assertEquals(4, cycles),
+            () -> assertEquals(0x1020, cpu.registers().address(0))
+        );
+    }
+
+    @Test
+    void peaJsrAndRtsUseSharedStackHelpers() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x1100);
+        cpu.registers().setProgramCounter(0x2004);
+
+        int peaCycles = new PeaOp().execute(cpu, bus, decoded(Opcode.PEA, Size.LONG,
+            EffectiveAddress.absoluteLong(0x3344_5566), EffectiveAddress.none(), 0));
+        int jsrCycles = new JsrOp().execute(cpu, bus, decoded(Opcode.JSR, Size.UNSIZED,
+            EffectiveAddress.absoluteLong(0x0000_3000), EffectiveAddress.none(), 0));
+        int rtsCycles = new RtsOp().execute(cpu, bus, decoded(Opcode.RTS, Size.UNSIZED,
+            EffectiveAddress.none(), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(12, peaCycles),
+            () -> assertEquals(16, jsrCycles),
+            () -> assertEquals(16, rtsCycles),
+            () -> assertEquals(0x10FC, cpu.registers().stackPointer()),
+            () -> assertEquals(0x2004, cpu.registers().programCounter()),
+            () -> assertEquals(0x3344_5566, bus.readLong(0x10FC)),
+            () -> assertEquals(0x0000_2004, bus.readLong(0x10F8))
+        );
+    }
+
+    @Test
+    void jmpOpWritesProgramCounter() {
+        M68kCpu cpu = new M68kCpu();
+
+        int cycles = new JmpOp().execute(cpu, null, decoded(Opcode.JMP, Size.UNSIZED,
+            EffectiveAddress.absoluteLong(0x0000_4000), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(8, cycles),
+            () -> assertEquals(0x0000_4000, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
+    void movemMemToRegOpLoadsRegistersAndAppliesPostincrementWriteback() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setAddress(2, 0x1200);
+        bus.writeLong(0x1200, 0xABCD_1234);
+        bus.writeLong(0x1204, 0x5678_9ABC);
+
+        int cycles = new MovemMemToRegOp().execute(cpu, bus, decoded(Opcode.MOVEM_MEM_TO_REG, Size.LONG,
+            EffectiveAddress.addrRegIndPostInc(2), EffectiveAddress.none(), 0x0401));
+
+        assertAll(
+            () -> assertEquals(8, cycles),
+            () -> assertEquals(0xABCD_1234, cpu.registers().data(0)),
+            () -> assertEquals(0x1208, cpu.registers().address(2))
+        );
+    }
+
+    @Test
+    void movemRegToMemOpStoresRegistersSequentially() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x1111_2222);
+        cpu.registers().setAddress(1, 0x3333_4444);
+
+        int cycles = new MovemRegToMemOp().execute(cpu, bus, decoded(Opcode.MOVEM_REG_TO_MEM, Size.LONG,
+            EffectiveAddress.none(), EffectiveAddress.absoluteLong(0x1300), 0x0201));
+
+        assertAll(
+            () -> assertEquals(8, cycles),
+            () -> assertEquals(0x1111_2222, bus.readLong(0x1300)),
+            () -> assertEquals(0x3333_4444, bus.readLong(0x1304))
+        );
+    }
+
+    @Test
+    void chkOpThrowsChkExceptionWhenRegisterIsNegative() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0xFFFF_FFFF);
+        cpu.registers().setData(1, 0x0000_0010);
+
+        ChkException thrown = assertThrows(
+            ChkException.class,
+            () -> new ChkOp().execute(cpu, null, decoded(Opcode.CHK, Size.WORD,
+                EffectiveAddress.dataReg(1), EffectiveAddress.dataReg(0), 0))
+        );
+
+        assertAll(
+            () -> assertEquals(6, thrown.vector()),
+            () -> assertEquals("CHK triggered exception vector 6", thrown.getMessage())
+        );
+    }
+
+    private static AddressSpace stackAndCodeBus() {
+        AddressSpace bus = new AddressSpace();
+        bus.addRegion(new Ram(0x1000, 0x1000));
+        return bus;
+    }
+
+    private static DecodedInstruction decoded(Opcode opcode, Size size, EffectiveAddress src, EffectiveAddress dst, int extension) {
+        return new DecodedInstruction(opcode, size, src, dst, extension, 0x0040_0104);
+    }
+}

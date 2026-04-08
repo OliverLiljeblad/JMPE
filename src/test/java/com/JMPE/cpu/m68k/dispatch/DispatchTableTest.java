@@ -106,6 +106,42 @@ class DispatchTableTest {
     }
 
     @Test
+    void providesPhaseOneBuiltInHandlers() {
+        DispatchTable dispatchTable = new DispatchTable();
+
+        assertBuiltInHandler(dispatchTable, Opcode.ADD, AddOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ADDQ, AddqOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.AND, AndOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ASL, AslOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ASR, AsrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.CHK, ChkOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.CMP, CmpOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.EOR, EorOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.JMP, JmpOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.JSR, JsrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.LEA, LeaOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.LSL, LslOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.LSR, LsrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE, MoveOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE_FROM_SR, MoveFromSrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE_TO_CCR, MoveToCcrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE_TO_SR, MoveToSrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVEA, MoveaOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVEM_MEM_TO_REG, MovemMemToRegOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVEM_REG_TO_MEM, MovemRegToMemOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVEQ, MoveQOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.OR, OrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_CCR, OriToCcrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_SR, OriToSrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.PEA, PeaOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ROL, RolOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ROR, RorOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.RTS, RtsOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.SUB, SubOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.SUBQ, SubqOp.class);
+    }
+
+    @Test
     void returnsRegisteredHandlerFromEmptyTable() {
         DispatchTable dispatchTable = DispatchTable.empty();
         Op handler = (cpu, bus, decoded) -> 4;
@@ -153,5 +189,10 @@ class DispatchTableTest {
         assertThrows(NullPointerException.class, () -> dispatchTable.register(Opcode.NOP, null));
         assertThrows(NullPointerException.class, () -> dispatchTable.lookup(null));
         assertThrows(NullPointerException.class, () -> dispatchTable.hasHandler(null));
+    }
+
+    private static void assertBuiltInHandler(DispatchTable dispatchTable, Opcode opcode, Class<? extends Op> handlerType) {
+        assertTrue(dispatchTable.hasHandler(opcode));
+        assertTrue(handlerType.isInstance(dispatchTable.lookup(opcode)));
     }
 }
