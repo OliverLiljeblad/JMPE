@@ -106,7 +106,7 @@ class DispatchTableTest {
     }
 
     @Test
-    void providesPhaseOneBuiltInHandlers() {
+    void providesExtendedBuiltInHandlers() {
         DispatchTable dispatchTable = new DispatchTable();
 
         assertBuiltInHandler(dispatchTable, Opcode.ADD, AddOp.class);
@@ -114,6 +114,9 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.AND, AndOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ASL, AslOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ASR, AsrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.BCC, BccOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.BRA, BraOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.BSR, BsrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.CHK, ChkOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.CMP, CmpOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.EOR, EorOp.class);

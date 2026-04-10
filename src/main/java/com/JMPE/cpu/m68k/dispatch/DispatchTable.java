@@ -98,6 +98,9 @@ public final class DispatchTable {
         register(Opcode.ANDI_TO_SR, new AndiToSrOp());
         register(Opcode.ASL, new AslOp());
         register(Opcode.ASR, new AsrOp());
+        register(Opcode.BCC, new BccOp());
+        register(Opcode.BRA, new BraOp());
+        register(Opcode.BSR, new BsrOp());
         register(Opcode.CHK, new ChkOp());
         register(Opcode.CLR, new ClrOp());
         register(Opcode.CMP, new CmpOp());

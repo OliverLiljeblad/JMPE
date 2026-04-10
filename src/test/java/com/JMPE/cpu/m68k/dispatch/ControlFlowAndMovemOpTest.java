@@ -2,7 +2,9 @@ package com.JMPE.cpu.m68k.dispatch;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.JMPE.bus.AddressSpace;
 import com.JMPE.bus.Ram;
@@ -64,6 +66,64 @@ class ControlFlowAndMovemOpTest {
         assertAll(
             () -> assertEquals(8, cycles),
             () -> assertEquals(0x0000_4000, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
+    void braOpBranchesRelativeToCurrentProgramCounter() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x2002);
+
+        int cycles = new BraOp().execute(cpu, null, decoded(Opcode.BRA, Size.BYTE,
+            EffectiveAddress.immediate(6), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(10, cycles),
+            () -> assertEquals(0x2008, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
+    void bsrOpPushesReturnAddressAndBranchesRelativeToCurrentProgramCounter() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x2004);
+        cpu.registers().setStackPointer(0x1100);
+
+        int cycles = new BsrOp().execute(cpu, bus, decoded(Opcode.BSR, Size.WORD,
+            EffectiveAddress.immediate(8), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(18, cycles),
+            () -> assertEquals(0x200C, cpu.registers().programCounter()),
+            () -> assertEquals(0x10FC, cpu.registers().stackPointer()),
+            () -> assertEquals(0x0000_2004, bus.readLong(0x10FC))
+        );
+    }
+
+    @Test
+    void bccOpRespectsConditionCodes() {
+        M68kCpu branchingCpu = new M68kCpu();
+        branchingCpu.registers().setProgramCounter(0x3002);
+        branchingCpu.statusRegister().setZero(false);
+
+        int takenCycles = new BccOp().execute(branchingCpu, null, decoded(Opcode.BCC, Size.BYTE,
+            EffectiveAddress.immediate(4), EffectiveAddress.none(), 0x6));
+
+        M68kCpu fallthroughCpu = new M68kCpu();
+        fallthroughCpu.registers().setProgramCounter(0x3002);
+        fallthroughCpu.statusRegister().setZero(true);
+
+        int fallthroughCycles = new BccOp().execute(fallthroughCpu, null, decoded(Opcode.BCC, Size.BYTE,
+            EffectiveAddress.immediate(4), EffectiveAddress.none(), 0x6));
+
+        assertAll(
+            () -> assertEquals(10, takenCycles),
+            () -> assertEquals(10, fallthroughCycles),
+            () -> assertEquals(0x3006, branchingCpu.registers().programCounter()),
+            () -> assertEquals(0x3002, fallthroughCpu.registers().programCounter()),
+            () -> assertFalse(branchingCpu.statusRegister().isZeroSet()),
+            () -> assertTrue(fallthroughCpu.statusRegister().isZeroSet())
         );
     }
 
