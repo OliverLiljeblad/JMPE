@@ -19,7 +19,7 @@ class OriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureOriScenario(cpu, 0x1234_5600);
 
-        int cycles = new OriOp().execute(cpu, decodedOri(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
+        int cycles = new OriOp().execute(cpu, null, decodedOri(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
 
         assertEquals(Or.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_5680, cpu.registers().data(0));
@@ -31,7 +31,7 @@ class OriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureOriScenario(cpu, 0x1234_0000);
 
-        int cycles = new OriOp().execute(cpu, decodedOri(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
+        int cycles = new OriOp().execute(cpu, null, decodedOri(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
 
         assertEquals(Or.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_8001, cpu.registers().data(0));
@@ -43,7 +43,7 @@ class OriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureOriScenario(cpu, 0x0234_5678);
 
-        int cycles = new OriOp().execute(cpu, decodedOri(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
+        int cycles = new OriOp().execute(cpu, null, decodedOri(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
 
         assertEquals(Or.EXECUTION_CYCLES, cycles);
         assertEquals(0x8234_5678, cpu.registers().data(0));
@@ -70,8 +70,8 @@ class OriOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -93,14 +93,6 @@ class OriOpTest {
                 0,
                 0x0040_0104
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.ORI,
-                Size.BYTE,
-                EffectiveAddress.immediate(0x80),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0104
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.ORI,
                 Size.BYTE,
@@ -110,16 +102,15 @@ class OriOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new OriOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new OriOp().execute(null, decodedOri(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new OriOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new OriOp().execute(null, null, decodedOri(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new OriOp().execute(new M68kCpu(), null, null));
     }
 
     private static void assertOriNegativeFlags(M68kCpu cpu) {

@@ -19,7 +19,7 @@ class EoriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureEoriScenario(cpu, 0x1234_5600);
 
-        int cycles = new EoriOp().execute(cpu, decodedEori(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
+        int cycles = new EoriOp().execute(cpu, null, decodedEori(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
 
         assertEquals(Eor.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_5680, cpu.registers().data(0));
@@ -31,7 +31,7 @@ class EoriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureEoriScenario(cpu, 0x1234_0000);
 
-        int cycles = new EoriOp().execute(cpu, decodedEori(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
+        int cycles = new EoriOp().execute(cpu, null, decodedEori(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
 
         assertEquals(Eor.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_8001, cpu.registers().data(0));
@@ -43,7 +43,7 @@ class EoriOpTest {
         M68kCpu cpu = new M68kCpu();
         configureEoriScenario(cpu, 0x0234_5678);
 
-        int cycles = new EoriOp().execute(cpu, decodedEori(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
+        int cycles = new EoriOp().execute(cpu, null, decodedEori(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
 
         assertEquals(Eor.EXECUTION_CYCLES, cycles);
         assertEquals(0x8234_5678, cpu.registers().data(0));
@@ -70,8 +70,8 @@ class EoriOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -93,14 +93,6 @@ class EoriOpTest {
                 0,
                 0x0040_0104
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.EORI,
-                Size.BYTE,
-                EffectiveAddress.immediate(0x80),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0104
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.EORI,
                 Size.BYTE,
@@ -110,16 +102,15 @@ class EoriOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new EoriOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new EoriOp().execute(null, decodedEori(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new EoriOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new EoriOp().execute(null, null, decodedEori(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new EoriOp().execute(new M68kCpu(), null, null));
     }
 
     private static void assertEoriNegativeFlags(M68kCpu cpu) {

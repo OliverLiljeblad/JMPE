@@ -1169,13 +1169,59 @@ public final class Decoder {
     /**
      * Line 5 (0101): ADDQ, SUBQ, Scc, and DBcc.
      *
-     * <p>Bit 8 distinguishes ADD/SUB quick (0) from Scc/DBcc (1).
-     * Within Scc/DBcc, if bits 5:3 = 001 it is DBcc (register indirect
-     * postdecrement loop), otherwise it is Scc (set byte on condition).
+     * <p>Bits 7:6 are the first split in this line:
+     * <pre>
+     *   bits 7:6 = 00/01/10  →  ADDQ / SUBQ
+     *   bits 7:6 = 11        →  Scc / DBcc
+     * </pre>
+     *
+     * <p>For ADDQ/SUBQ, bits 11:9 carry the quick value (000 encodes 8), bit 8
+     * distinguishes ADDQ (0) from SUBQ (1), and bits 5:0 encode the destination
+     * EA. Address-register direct is legal only for WORD/LONG sizes.
+     *
+     * <p>For Scc/DBcc, bits 11:8 are the condition code. The DBcc form is the
+     * special mode=001 slot and uses the low register field as a data register,
+     * not an address register. Those helpers are intentionally deferred, so this
+     * decoder now leaves that sub-space behind explicit guarded stubs.
      */
-    private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int opwordAddr = extPc - 2;
+        int sizeBits = sizeBits(op);
+
+        if (sizeBits == 0b11) {
+            if (eaMode(op) == 0b001) {
+                throw new UnsupportedOperationException("DBcc decode not implemented yet");
+            }
+            throw new UnsupportedOperationException("Scc decode not implemented yet");
+        }
+
+        Size size = decodeSize(sizeBits, op, opwordAddr);
+        int mode = eaMode(op);
+        int reg = regY(op);
+
+        if (mode == 0b001 && size == Size.BYTE) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+        if (mode == 0b111 && reg >= 0b010) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        int[] cursor = {extPc};
+        int quickValue = regX(op);
+        if (quickValue == 0) {
+            quickValue = 8;
+        }
+
+        EffectiveAddress dst = decodeEa(mode, reg, size, bus, cursor);
+        Opcode opcode = ((op & 0x0100) == 0) ? Opcode.ADDQ : Opcode.SUBQ;
+        return new DecodedInstruction(
+            opcode,
+            size,
+            EffectiveAddress.immediate(quickValue),
+            dst,
+            0,
+            cursor[0]
+        );
     }
 
     /**
@@ -1191,9 +1237,40 @@ public final class Decoder {
      * the branch target cannot be known without consuming the displacement word
      * when the byte displacement is zero.
      */
-    private DecodedInstruction decodeLine6(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLine6(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int opwordAddr = extPc - 2;
+        int[] cursor = {extPc};
+        int displacementByte = op & 0xFF;
+
+        Size displacementSize;
+        int displacement;
+        if (displacementByte == 0x00) {
+            displacementSize = Size.WORD;
+            displacement = readExtWord(bus, cursor);
+        } else {
+            if (displacementByte == 0xFF) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+            displacementSize = Size.BYTE;
+            displacement = (byte) displacementByte;
+        }
+
+        EffectiveAddress src = EffectiveAddress.immediate(displacement);
+        int rawCondition = condition(op);
+        return switch (rawCondition) {
+            case 0x0 -> new DecodedInstruction(
+                Opcode.BRA, displacementSize,
+                src, EffectiveAddress.none(),
+                0, cursor[0]);
+            case 0x1 -> new DecodedInstruction(
+                Opcode.BSR, displacementSize,
+                src, EffectiveAddress.none(),
+                0, cursor[0]);
+            default -> new DecodedInstruction(
+                Opcode.BCC, displacementSize,
+                src, EffectiveAddress.none(),
+                rawCondition, cursor[0]);
+        };
     }
 
     /**
@@ -1204,9 +1281,20 @@ public final class Decoder {
      * to 32 bits at execute time. No extension words. No Bus access required.
      * Bit 8 = 1 is illegal.
      */
-    private DecodedInstruction decodeLine7(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLine7(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int opwordAddr = extPc - 2;
+        if ((op & 0x0100) != 0) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        return new DecodedInstruction(
+            Opcode.MOVEQ,
+            Size.LONG,
+            EffectiveAddress.immediate(op & 0xFF),
+            EffectiveAddress.dataReg(regX(op)),
+            0,
+            extPc
+        );
     }
 
     /**
@@ -1473,7 +1561,7 @@ public final class Decoder {
      */
     private static int readExtWord(Bus bus, int[] cursor) {
         //TODO: Decide if this should propagate the exception or handle it here
-        int value = bus.readWord(cursor[0]);
+        int value = (short) bus.readWord(cursor[0]);
         cursor[0] += 2;
         return value;
     }

@@ -19,7 +19,7 @@ class AndiOpTest {
         M68kCpu cpu = new M68kCpu();
         configureAndiScenario(cpu, 0x1234_56FF);
 
-        int cycles = new AndiOp().execute(cpu, decodedAndi(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
+        int cycles = new AndiOp().execute(cpu, null, decodedAndi(Size.BYTE, 0x80, EffectiveAddress.dataReg(0)));
 
         assertEquals(And.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_5680, cpu.registers().data(0));
@@ -31,7 +31,7 @@ class AndiOpTest {
         M68kCpu cpu = new M68kCpu();
         configureAndiScenario(cpu, 0x1234_FFFF);
 
-        int cycles = new AndiOp().execute(cpu, decodedAndi(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
+        int cycles = new AndiOp().execute(cpu, null, decodedAndi(Size.WORD, 0x8001, EffectiveAddress.dataReg(0)));
 
         assertEquals(And.EXECUTION_CYCLES, cycles);
         assertEquals(0x1234_8001, cpu.registers().data(0));
@@ -43,7 +43,7 @@ class AndiOpTest {
         M68kCpu cpu = new M68kCpu();
         configureAndiScenario(cpu, 0x9234_5678);
 
-        int cycles = new AndiOp().execute(cpu, decodedAndi(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
+        int cycles = new AndiOp().execute(cpu, null, decodedAndi(Size.LONG, 0x8000_0000, EffectiveAddress.dataReg(0)));
 
         assertEquals(And.EXECUTION_CYCLES, cycles);
         assertEquals(0x8000_0000, cpu.registers().data(0));
@@ -70,8 +70,8 @@ class AndiOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, unsized));
+        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, null, unsized));
     }
 
     @Test
@@ -93,14 +93,6 @@ class AndiOpTest {
                 0,
                 0x0040_0104
         );
-        DecodedInstruction withMemoryDestination = new DecodedInstruction(
-                Opcode.ANDI,
-                Size.BYTE,
-                EffectiveAddress.immediate(0x80),
-                EffectiveAddress.addrRegInd(0),
-                0,
-                0x0040_0104
-        );
         DecodedInstruction withExtension = new DecodedInstruction(
                 Opcode.ANDI,
                 Size.BYTE,
@@ -110,16 +102,15 @@ class AndiOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, withNoDestination));
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, withMemoryDestination));
-        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, null, withNoDestination));
+        assertThrows(IllegalArgumentException.class, () -> new AndiOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new AndiOp().execute(null, decodedAndi(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
-        assertThrows(NullPointerException.class, () -> new AndiOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new AndiOp().execute(null, null, decodedAndi(Size.BYTE, 0x80, EffectiveAddress.dataReg(0))));
+        assertThrows(NullPointerException.class, () -> new AndiOp().execute(new M68kCpu(), null, null));
     }
 
     private static void assertAndiNegativeFlags(M68kCpu cpu) {

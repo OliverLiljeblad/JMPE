@@ -16,7 +16,7 @@ class EoriToCcrOpTest {
         M68kCpu cpu = new M68kCpu();
         cpu.statusRegister().setRawValue(0x251F);
 
-        int cycles = new EoriToCcrOp().execute(cpu, decodedEoriToCcr(0x0015));
+        int cycles = new EoriToCcrOp().execute(cpu, null, decodedEoriToCcr(0x0015));
 
         assertEquals(4, cycles);
         assertEquals(0x250A, cpu.statusRegister().rawValue());
@@ -43,8 +43,8 @@ class EoriToCcrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, wrongOpcode));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, wrongSize));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, null, wrongOpcode));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, null, wrongSize));
     }
 
     @Test
@@ -75,15 +75,15 @@ class EoriToCcrOpTest {
                 0x0040_0104
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, withRegisterSource));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, withWrongDestination));
-        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, null, withRegisterSource));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, null, withWrongDestination));
+        assertThrows(IllegalArgumentException.class, () -> new EoriToCcrOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new EoriToCcrOp().execute(null, decodedEoriToCcr(0x15)));
-        assertThrows(NullPointerException.class, () -> new EoriToCcrOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new EoriToCcrOp().execute(null, null, decodedEoriToCcr(0x15)));
+        assertThrows(NullPointerException.class, () -> new EoriToCcrOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedEoriToCcr(int immediate) {

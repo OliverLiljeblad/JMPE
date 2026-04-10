@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.dispatch;
 
+import com.JMPE.bus.Bus;
 import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
@@ -27,19 +28,19 @@ import java.util.Objects;
  */
 public final class TstOp implements Op {
     @Override
-    public int execute(M68kCpu cpu, DecodedInstruction decoded) {
+    public int execute(M68kCpu cpu, Bus bus, DecodedInstruction decoded) {
         Objects.requireNonNull(cpu, "cpu must not be null");
         Objects.requireNonNull(decoded, "decoded must not be null");
 
-        EffectiveAddress.DataReg destination = validate(decoded);
+        validate(decoded);
         return Tst.execute(
                 decoded.size(),
-                () -> cpu.registers().data(destination.reg()),
+                () -> OperandResolver.read(decoded.dst(), cpu, bus, decoded.size()),
                 cpu.statusRegister().moveConditionCodes()
         );
     }
 
-    private static EffectiveAddress.DataReg validate(DecodedInstruction decoded) {
+    private static void validate(DecodedInstruction decoded) {
         if (decoded.opcode() != Opcode.TST) {
             throw new IllegalArgumentException("TstOp requires opcode TST but was " + decoded.opcode());
         }
@@ -55,11 +56,5 @@ public final class TstOp implements Op {
         if (decoded.extension() != 0) {
             throw new IllegalArgumentException("TST must not carry an extension payload");
         }
-        if (!(decoded.dst() instanceof EffectiveAddress.DataReg dataRegister)) {
-            throw new IllegalArgumentException(
-                    "TST runtime currently supports data-register-direct destination only but was " + decoded.dst()
-            );
-        }
-        return dataRegister;
     }
 }
