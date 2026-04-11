@@ -7,24 +7,25 @@ import java.util.Arrays;
  * <p>
  * ROM bytes are immutable after construction so accidental writes fail fast.
  */
-public final class Rom {
+public final class Rom implements MemoryRegion {
     private static final int RESET_STACK_POINTER_OFFSET = 0;
     private static final int RESET_PROGRAM_COUNTER_OFFSET = 4;
     private static final int RESET_VECTOR_BYTES = 8;
 
-    private final int baseAddress;
+    private final int base;
     private final byte[] bytes;
 
-    public Rom(int baseAddress, byte[] bytes) {
+    public Rom(int base, byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
             throw new IllegalArgumentException("ROM bytes must not be null or empty");
         }
-        this.baseAddress = baseAddress;
+        this.base = base;
         this.bytes = Arrays.copyOf(bytes, bytes.length);
     }
 
-    public int baseAddress() {
-        return baseAddress;
+    @Override
+    public int base() {
+        return base;
     }
 
     public int size() {
@@ -32,7 +33,7 @@ public final class Rom {
     }
 
     public boolean contains(int address) {
-        long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
+        long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(base);
         return offset >= 0 && offset < bytes.length;
     }
 
@@ -46,11 +47,11 @@ public final class Rom {
             | Byte.toUnsignedInt(bytes[offset + 1]);
     }
 
-    public long readLong(int address) {
+    public int readLong(int address) {
         int offset = offsetFor(address, 4);
-        return ((long) Byte.toUnsignedInt(bytes[offset]) << 24)
-            | ((long) Byte.toUnsignedInt(bytes[offset + 1]) << 16)
-            | ((long) Byte.toUnsignedInt(bytes[offset + 2]) << 8)
+        return (Byte.toUnsignedInt(bytes[offset]) << 24)
+            | (Byte.toUnsignedInt(bytes[offset + 1]) << 16)
+            | (Byte.toUnsignedInt(bytes[offset + 2]) << 8)
             | Byte.toUnsignedInt(bytes[offset + 3]);
     }
 
@@ -59,7 +60,7 @@ public final class Rom {
      */
     public int initialSupervisorStackPointer() {
         ensureHasResetVectors();
-        return (int) readLong(baseAddress + RESET_STACK_POINTER_OFFSET);
+        return (int) readLong(base + RESET_STACK_POINTER_OFFSET);
     }
 
     /**
@@ -67,15 +68,28 @@ public final class Rom {
      */
     public int initialProgramCounter() {
         ensureHasResetVectors();
-        return (int) readLong(baseAddress + RESET_PROGRAM_COUNTER_OFFSET);
+        return (int) readLong(base + RESET_PROGRAM_COUNTER_OFFSET);
     }
 
-    /**
-     * ROM is immutable by design; writes should be routed to RAM/MMIO regions instead.
+    /*
+     * NOTE: ROM is immutable by design; Exceptions are for debug purposes.
+     *       Expected behaviour of writing to ROM is NOP.
      */
     public void writeByte(int address, int value) {
         throw new UnsupportedOperationException(
-            "Cannot write to ROM at address 0x" + Integer.toHexString(address));
+            "Cannot write to ROM at address 0x" + Integer.toHexString(absoluteAddress(address)));
+    }
+
+    @Override
+    public void writeWord(int offset, int value) {
+        throw new UnsupportedOperationException(
+            "Cannot write to ROM at address 0x" + Integer.toHexString(absoluteAddress(offset)));
+    }
+
+    @Override
+    public void writeLong(int offset, int value) {
+        throw new UnsupportedOperationException(
+            "Cannot write to ROM at address 0x" + Integer.toHexString(absoluteAddress(offset)));
     }
 
     public byte[] copyBytes() {
@@ -83,7 +97,7 @@ public final class Rom {
     }
 
     private int offsetFor(int address, int width) {
-        long start = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
+        long start = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(base);
         long endExclusive = start + width;
         if (start < 0 || endExclusive > bytes.length) {
             throw new IndexOutOfBoundsException(
@@ -96,5 +110,9 @@ public final class Rom {
         if (bytes.length < RESET_VECTOR_BYTES) {
             throw new IllegalStateException("ROM must contain at least 8 bytes for reset vectors");
         }
+    }
+
+    private int absoluteAddress(int offset) {
+        return this.base + offset;
     }
 }

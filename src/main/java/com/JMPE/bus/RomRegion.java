@@ -22,7 +22,7 @@ public final class RomRegion implements MemoryRegion {
 
     @Override
     public int base() {
-        return rom.baseAddress();
+        return rom.base();
     }
 
     @Override
@@ -63,6 +63,6 @@ public final class RomRegion implements MemoryRegion {
     }
 
     private int absoluteAddress(int offset) {
-        return rom.baseAddress() + offset;
+        return rom.base() + offset;
     }
 }
