@@ -1,7 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.shift;
 
 import com.JMPE.cpu.m68k.Size;
-import com.JMPE.cpu.m68k.instructions.data.Move;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 
 import java.util.Objects;
 
@@ -31,7 +31,7 @@ public final class Rol {
             int count,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(destinationReader, "destinationReader must not be null");

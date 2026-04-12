@@ -51,16 +51,13 @@ public enum Opcode {
     NOP,
     RESET,
     LINK, UNLK,
-    MOVE_USP,
     ILLEGAL,
     CHK,
 
-    // ── Line traps ─────────────────────────────────────────────────────────
-    LINEA,   // 0xA-line emulator trap
-    LINEF,   // 0xF-line coprocessor trap
-
-    // ---
-    LINE_A_TRAP, NBCD, TAS, TST, MOVEM_MEM_TO_REG, MOVEM_REG_TO_MEM,
+    // ── Additional decoded variants ────────────────────────────────────────
+    LINE_A_TRAP,
+    NBCD, TAS, TST, MOVEM_MEM_TO_REG, MOVEM_REG_TO_MEM,
     MOVE_TO_USP,
-    MOVE_FROM_USP, LINE_F_TRAP,
+    MOVE_FROM_USP,
+    LINE_F_TRAP,
 }

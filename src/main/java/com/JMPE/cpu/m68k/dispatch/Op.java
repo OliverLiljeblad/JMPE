@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.dispatch;
 
+import com.JMPE.bus.Bus;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 
@@ -18,9 +19,10 @@ public interface Op {
     /**
      * Executes the decoded instruction and returns the instruction cycle cost.
      *
-     * @param cpu the CPU state to read and mutate
+     * @param cpu     the CPU state to read and mutate
+     * @param bus     the system bus for memory-addressed operand access
      * @param decoded the already-decoded instruction descriptor
      * @return the execution cycle cost for the instruction
      */
-    int execute(M68kCpu cpu, DecodedInstruction decoded);
+    int execute(M68kCpu cpu, Bus bus, DecodedInstruction decoded);
 }

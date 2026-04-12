@@ -2,9 +2,13 @@ package com.JMPE.cpu.m68k;
 
 import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addq;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Sub;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Subq;
-import com.JMPE.cpu.m68k.instructions.data.Move;
+import com.JMPE.cpu.m68k.instructions.shift.Asl;
+import com.JMPE.cpu.m68k.instructions.shift.Asr;
+import com.JMPE.cpu.m68k.instructions.shift.Lsl;
+import com.JMPE.cpu.m68k.instructions.shift.Lsr;
 
 /**
  * Motorola 68000 status register model.
@@ -26,6 +30,7 @@ public final class StatusRegister {
     private int value;
     private final ArithmeticConditionCodes arithmeticConditionCodes = new ArithmeticConditionCodes();
     private final MoveConditionCodes moveConditionCodes = new MoveConditionCodes();
+    private final ShiftConditionCodes shiftConditionCodes = new ShiftConditionCodes();
 
     public int rawValue() {
         return value & 0xFFFF;
@@ -114,7 +119,7 @@ public final class StatusRegister {
     /**
      * CCR adapter for MOVE/CMP-like helpers that only update N/Z/V/C.
      */
-    public Move.ConditionCodes moveConditionCodes() {
+    public ConditionCodes moveConditionCodes() {
         return moveConditionCodes;
     }
 
@@ -135,6 +140,22 @@ public final class StatusRegister {
 
     public Subq.ConditionCodes subqConditionCodes() {
         return arithmeticConditionCodes;
+    }
+
+    public Asl.ConditionCodes aslConditionCodes() {
+        return shiftConditionCodes;
+    }
+
+    public Asr.ConditionCodes asrConditionCodes() {
+        return shiftConditionCodes;
+    }
+
+    public Lsl.ConditionCodes lslConditionCodes() {
+        return shiftConditionCodes;
+    }
+
+    public Lsr.ConditionCodes lsrConditionCodes() {
+        return shiftConditionCodes;
     }
 
     public void updateAddFlags(long source, long destination, long result, int bits) {
@@ -201,7 +222,7 @@ public final class StatusRegister {
         };
     }
 
-    private final class MoveConditionCodes implements Move.ConditionCodes {
+    private final class MoveConditionCodes implements ConditionCodes {
         @Override
         public void setNegative(boolean value) {
             StatusRegister.this.setNegative(value);
@@ -225,6 +246,34 @@ public final class StatusRegister {
 
     private final class ArithmeticConditionCodes
         implements Add.ConditionCodes, Addq.ConditionCodes, Sub.ConditionCodes, Subq.ConditionCodes {
+        @Override
+        public void setNegative(boolean value) {
+            StatusRegister.this.setNegative(value);
+        }
+
+        @Override
+        public void setZero(boolean value) {
+            StatusRegister.this.setZero(value);
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            StatusRegister.this.setOverflow(value);
+        }
+
+        @Override
+        public void setCarry(boolean value) {
+            StatusRegister.this.setCarry(value);
+        }
+
+        @Override
+        public void setExtend(boolean value) {
+            StatusRegister.this.setExtend(value);
+        }
+    }
+
+    private final class ShiftConditionCodes
+        implements Asl.ConditionCodes, Asr.ConditionCodes, Lsl.ConditionCodes, Lsr.ConditionCodes {
         @Override
         public void setNegative(boolean value) {
             StatusRegister.this.setNegative(value);

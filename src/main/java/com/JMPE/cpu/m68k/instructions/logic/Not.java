@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.logic;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -30,7 +31,7 @@ public final class Not {
             Size size,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(destinationReader, "destinationReader must not be null");
