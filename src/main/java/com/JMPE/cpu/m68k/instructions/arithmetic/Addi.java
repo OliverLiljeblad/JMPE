@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.arithmetic;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
 import java.util.Objects;
 
 /**
