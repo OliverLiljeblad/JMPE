@@ -111,7 +111,7 @@ public final class M68kCpu {
 
             registers.setProgramCounter(decoded.nextPc());
             Op handler = dispatchTable.lookup(decoded.opcode());
-            int cycles = handler.execute(this, decoded);
+            int cycles = handler.execute(this, bus, decoded);
 
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
             StepReport report = StepReport.success(instructionName, before, after, cycles);

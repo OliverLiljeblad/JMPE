@@ -1,6 +1,7 @@
 package com.JMPE.cpu.m68k.instructions.logic;
 
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 
 import java.util.Objects;
@@ -36,7 +37,7 @@ public final class Or {
             SourceReader sourceReader,
             DestinationReader destinationReader,
             DestinationWriter destinationWriter,
-            Move.ConditionCodes conditionCodes
+            ConditionCodes conditionCodes
     ) {
         Objects.requireNonNull(size, "size must not be null");
         Objects.requireNonNull(sourceReader, "sourceReader must not be null");

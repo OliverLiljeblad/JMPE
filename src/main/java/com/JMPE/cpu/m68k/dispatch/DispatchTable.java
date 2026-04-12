@@ -90,7 +90,50 @@ public final class DispatchTable {
     }
 
     private void registerBuiltIns() {
+        register(Opcode.ADD, new AddOp());
+        register(Opcode.ADDQ, new AddqOp());
+        register(Opcode.AND, new AndOp());
+        register(Opcode.ANDI, new AndiOp());
+        register(Opcode.ANDI_TO_CCR, new AndiToCcrOp());
+        register(Opcode.ANDI_TO_SR, new AndiToSrOp());
+        register(Opcode.ASL, new AslOp());
+        register(Opcode.ASR, new AsrOp());
+        register(Opcode.BCC, new BccOp());
+        register(Opcode.BRA, new BraOp());
+        register(Opcode.BSR, new BsrOp());
+        register(Opcode.CHK, new ChkOp());
+        register(Opcode.CLR, new ClrOp());
+        register(Opcode.CMP, new CmpOp());
+        register(Opcode.CMPI, new CmpiOp());
+        register(Opcode.EOR, new EorOp());
+        register(Opcode.EORI, new EoriOp());
+        register(Opcode.EORI_TO_CCR, new EoriToCcrOp());
+        register(Opcode.EORI_TO_SR, new EoriToSrOp());
+        register(Opcode.JMP, new JmpOp());
+        register(Opcode.JSR, new JsrOp());
+        register(Opcode.LEA, new LeaOp());
+        register(Opcode.LSL, new LslOp());
+        register(Opcode.LSR, new LsrOp());
+        register(Opcode.MOVE, new MoveOp());
+        register(Opcode.MOVE_FROM_SR, new MoveFromSrOp());
+        register(Opcode.MOVE_TO_CCR, new MoveToCcrOp());
+        register(Opcode.MOVE_TO_SR, new MoveToSrOp());
+        register(Opcode.MOVEA, new MoveaOp());
+        register(Opcode.MOVEM_MEM_TO_REG, new MovemMemToRegOp());
+        register(Opcode.MOVEM_REG_TO_MEM, new MovemRegToMemOp());
+        register(Opcode.MOVEQ, new MoveQOp());
         register(Opcode.NOP, new NopOp());
+        register(Opcode.NOT, new NotOp());
+        register(Opcode.OR, new OrOp());
+        register(Opcode.ORI, new OriOp());
+        register(Opcode.ORI_TO_CCR, new OriToCcrOp());
+        register(Opcode.ORI_TO_SR, new OriToSrOp());
+        register(Opcode.PEA, new PeaOp());
+        register(Opcode.ROL, new RolOp());
+        register(Opcode.ROR, new RorOp());
+        register(Opcode.RTS, new RtsOp());
+        register(Opcode.SUB, new SubOp());
+        register(Opcode.SUBQ, new SubqOp());
         register(Opcode.TST, new TstOp());
     }
 }

@@ -19,7 +19,7 @@ class NopOpTest {
         cpu.registers().setData(0, 0x1234_5678);
         cpu.statusRegister().setCarry(true);
 
-        int cycles = new NopOp().execute(cpu, decodedNop());
+        int cycles = new NopOp().execute(cpu, null, decodedNop());
 
         assertEquals(Nop.EXECUTION_CYCLES, cycles);
         assertEquals(0x0040_0100, cpu.registers().programCounter());
@@ -39,7 +39,7 @@ class NopOpTest {
             0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, decoded));
+        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, null, decoded));
     }
 
     @Test
@@ -54,7 +54,7 @@ class NopOpTest {
             0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, decoded));
+        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, null, decoded));
     }
 
     @Test
@@ -85,15 +85,15 @@ class NopOpTest {
             0x0040_0102
         );
 
-        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, withSource));
-        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, withDestination));
-        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, withExtension));
+        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, null, withSource));
+        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, null, withDestination));
+        assertThrows(IllegalArgumentException.class, () -> new NopOp().execute(cpu, null, withExtension));
     }
 
     @Test
     void rejectsNullInputs() {
-        assertThrows(NullPointerException.class, () -> new NopOp().execute(null, decodedNop()));
-        assertThrows(NullPointerException.class, () -> new NopOp().execute(new M68kCpu(), null));
+        assertThrows(NullPointerException.class, () -> new NopOp().execute(null, null, decodedNop()));
+        assertThrows(NullPointerException.class, () -> new NopOp().execute(new M68kCpu(), null, null));
     }
 
     private static DecodedInstruction decodedNop() {

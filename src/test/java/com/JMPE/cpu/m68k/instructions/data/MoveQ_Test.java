@@ -1,5 +1,6 @@
 package com.JMPE.cpu.m68k.instructions.data;
 
+import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,7 +86,7 @@ public class MoveQ_Test {
         };
     }
 
-    private static final class TrackingConditionCodes implements Move.ConditionCodes {
+    private static final class TrackingConditionCodes implements ConditionCodes {
         private boolean negative;
         private boolean zero;
         private boolean overflow;
