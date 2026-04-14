@@ -24,4 +24,9 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
+    listOf("jmpe.rom", "jmpe.boot.steps").forEach { key ->
+        System.getProperty(key)?.let { value ->
+            systemProperty(key, value)
+        }
+    }
 }

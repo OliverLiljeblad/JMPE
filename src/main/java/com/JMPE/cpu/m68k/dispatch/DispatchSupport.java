@@ -8,6 +8,7 @@ import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.control.Bcc;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import com.JMPE.cpu.m68k.instructions.data.Movem;
 
@@ -217,6 +218,47 @@ final class DispatchSupport {
             case EffectiveAddress.None ignored -> 1;
             case EffectiveAddress.Immediate immediate -> immediate.value();
             default -> OperandResolver.read(decoded.src(), cpu, bus, Size.LONG) & 0x3F;
+        };
+    }
+
+    /**
+     * 68000 branch displacements are relative to the address immediately after the opword.
+     * For byte branches that matches the post-decode PC; for word branches it is one word earlier.
+     */
+    static int branchBase(M68kCpu cpu, Size displacementSize) {
+        Objects.requireNonNull(cpu, "cpu must not be null");
+        Objects.requireNonNull(displacementSize, "displacementSize must not be null");
+
+        return switch (displacementSize) {
+            case BYTE -> cpu.registers().programCounter();
+            case WORD -> cpu.registers().programCounter() - Size.WORD.bytes();
+            default -> throw new IllegalArgumentException(
+                "Branch displacement size must be BYTE or WORD but was " + displacementSize);
+        };
+    }
+
+    static Bcc.ConditionCodesReader conditionCodesReader(M68kCpu cpu) {
+        Objects.requireNonNull(cpu, "cpu must not be null");
+        return new Bcc.ConditionCodesReader() {
+            @Override
+            public boolean isNegative() {
+                return cpu.statusRegister().isNegativeSet();
+            }
+
+            @Override
+            public boolean isZero() {
+                return cpu.statusRegister().isZeroSet();
+            }
+
+            @Override
+            public boolean isOverflow() {
+                return cpu.statusRegister().isOverflowSet();
+            }
+
+            @Override
+            public boolean isCarry() {
+                return cpu.statusRegister().isCarrySet();
+            }
         };
     }
 

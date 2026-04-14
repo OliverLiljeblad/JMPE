@@ -1181,20 +1181,28 @@ public final class Decoder {
      *
      * <p>For Scc/DBcc, bits 11:8 are the condition code. The DBcc form is the
      * special mode=001 slot and uses the low register field as a data register,
-     * not an address register. Those helpers are intentionally deferred, so this
-     * decoder now leaves that sub-space behind explicit guarded stubs.
+     * not an address register. DBcc always carries a signed 16-bit displacement
+     * extension word; Scc has no extension and still remains deferred.
      */
     private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) throws IllegalInstructionException {
-        int opwordAddr = extPc - 2;
         int sizeBits = sizeBits(op);
 
         if (sizeBits == 0b11) {
             if (eaMode(op) == 0b001) {
-                throw new UnsupportedOperationException("DBcc decode not implemented yet");
+                int[] cursor = {extPc};
+                return new DecodedInstruction(
+                    Opcode.DBcc,
+                    Size.UNSIZED,
+                    EffectiveAddress.immediate(readExtWord(bus, cursor)),
+                    EffectiveAddress.dataReg(regY(op)),
+                    condition(op),
+                    cursor[0]
+                );
             }
             throw new UnsupportedOperationException("Scc decode not implemented yet");
         }
 
+        int opwordAddr = extPc - 2;
         Size size = decodeSize(sizeBits, op, opwordAddr);
         int mode = eaMode(op);
         int reg = regY(op);

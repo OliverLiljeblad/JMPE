@@ -59,6 +59,18 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesDbraWithSignedWordDisplacementAndCounterRegister() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x51C8, busWithWords(EXTENSION_PC, 0xFFFC), EXTENSION_PC);
+
+        assertEquals(Opcode.DBcc, decoded.opcode());
+        assertEquals(Size.UNSIZED, decoded.size());
+        assertEquals(EffectiveAddress.immediate(-4), decoded.src());
+        assertEquals(EffectiveAddress.dataReg(0), decoded.dst());
+        assertEquals(0x1, decoded.extension());
+        assertEquals(INSTRUCTION_PC + 4, decoded.nextPc());
+    }
+
+    @Test
     void decodesBraWithByteDisplacement() throws IllegalInstructionException {
         DecodedInstruction decoded = decoder.decode(0x60FE, null, EXTENSION_PC);
 

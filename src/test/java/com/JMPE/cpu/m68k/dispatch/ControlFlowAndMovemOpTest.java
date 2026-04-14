@@ -95,7 +95,7 @@ class ControlFlowAndMovemOpTest {
 
         assertAll(
             () -> assertEquals(18, cycles),
-            () -> assertEquals(0x200C, cpu.registers().programCounter()),
+            () -> assertEquals(0x200A, cpu.registers().programCounter()),
             () -> assertEquals(0x10FC, cpu.registers().stackPointer()),
             () -> assertEquals(0x0000_2004, bus.readLong(0x10FC))
         );
@@ -124,6 +124,42 @@ class ControlFlowAndMovemOpTest {
             () -> assertEquals(0x3002, fallthroughCpu.registers().programCounter()),
             () -> assertFalse(branchingCpu.statusRegister().isZeroSet()),
             () -> assertTrue(fallthroughCpu.statusRegister().isZeroSet())
+        );
+    }
+
+    @Test
+    void dbccOpDecrementsLowWordAndBranchesWhenConditionIsFalse() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x3004);
+        cpu.registers().setData(0, 0x1234_0001);
+
+        int cycles = new DbccOp().execute(cpu, null, decoded(Opcode.DBcc, Size.UNSIZED,
+            EffectiveAddress.immediate(-4), EffectiveAddress.dataReg(0), 0x1));
+
+        assertAll(
+            () -> assertEquals(10, cycles),
+            () -> assertEquals(0x1234_0000, cpu.registers().data(0)),
+            () -> assertEquals(0x2FFE, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
+    void dbccOpFallsThroughWithoutTouchingFlagsWhenConditionIsTrue() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x3004);
+        cpu.registers().setData(0, 0x0000_0001);
+        cpu.statusRegister().setZero(false);
+        cpu.statusRegister().setNegative(true);
+
+        int cycles = new DbccOp().execute(cpu, null, decoded(Opcode.DBcc, Size.UNSIZED,
+            EffectiveAddress.immediate(-4), EffectiveAddress.dataReg(0), 0x6));
+
+        assertAll(
+            () -> assertEquals(10, cycles),
+            () -> assertEquals(0x0000_0001, cpu.registers().data(0)),
+            () -> assertEquals(0x3004, cpu.registers().programCounter()),
+            () -> assertFalse(cpu.statusRegister().isZeroSet()),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet())
         );
     }
 
