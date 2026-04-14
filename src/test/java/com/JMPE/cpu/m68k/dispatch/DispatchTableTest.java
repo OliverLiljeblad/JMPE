@@ -110,6 +110,7 @@ class DispatchTableTest {
         DispatchTable dispatchTable = new DispatchTable();
 
         assertBuiltInHandler(dispatchTable, Opcode.ADD, AddOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ABCD, AbcdOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ADDI, AddiOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ADDA, AddaOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ADDX, AddxOp.class);
@@ -140,17 +141,21 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.LSL, LslOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LSR, LsrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVE, MoveOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE_FROM_USP, MoveFromUspOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVE_FROM_SR, MoveFromSrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVE_TO_CCR, MoveToCcrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVE_TO_SR, MoveToSrOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVE_TO_USP, MoveToUspOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEA, MoveaOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEM_MEM_TO_REG, MovemMemToRegOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEM_REG_TO_MEM, MovemRegToMemOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.MOVEP, MovepOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEQ, MoveQOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MULS, MulsOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MULU, MuluOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.NEG, NegOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.NEGX, NegxOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.NBCD, NbcdOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.OR, OrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_CCR, OriToCcrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_SR, OriToSrOp.class);
@@ -161,12 +166,14 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.ROXR, RoxrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.RTS, RtsOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.Scc, SccOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.SBCD, SbcdOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUB, SubOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBA, SubaOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBI, SubiOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBQ, SubqOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBX, SubxOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SWAP, SwapOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.TAS, TasOp.class);
     }
 
     @Test

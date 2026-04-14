@@ -2,6 +2,9 @@ package com.JMPE.cpu.m68k;
 
 import com.JMPE.cpu.m68k.instructions.arithmetic.Add;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addq;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Abcd;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Nbcd;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Sbcd;
 import com.JMPE.cpu.m68k.instructions.ConditionCodes;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Sub;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Subq;
@@ -33,13 +36,16 @@ public final class StatusRegister {
     private final ArithmeticConditionCodes arithmeticConditionCodes = new ArithmeticConditionCodes();
     private final MoveConditionCodes moveConditionCodes = new MoveConditionCodes();
     private final ShiftConditionCodes shiftConditionCodes = new ShiftConditionCodes();
+    private SupervisorModeListener supervisorModeListener;
 
     public int rawValue() {
         return value & 0xFFFF;
     }
 
     public void setRawValue(int rawValue) {
+        boolean previousSupervisor = isSupervisorSet();
         this.value = rawValue & 0xFFFF;
+        notifySupervisorModeChange(previousSupervisor);
     }
 
     public int conditionCodeRegister() {
@@ -118,6 +124,10 @@ public final class StatusRegister {
         setBit(TRACE_BIT, set);
     }
 
+    public void setSupervisorModeListener(SupervisorModeListener supervisorModeListener) {
+        this.supervisorModeListener = supervisorModeListener;
+    }
+
     /**
      * CCR adapter for MOVE/CMP-like helpers that only update N/Z/V/C.
      */
@@ -168,6 +178,18 @@ public final class StatusRegister {
         return shiftConditionCodes;
     }
 
+    public Abcd.ConditionCodes abcdConditionCodes() {
+        return bcdConditionCodes;
+    }
+
+    public Sbcd.ConditionCodes sbcdConditionCodes() {
+        return bcdConditionCodes;
+    }
+
+    public Nbcd.ConditionCodes nbcdConditionCodes() {
+        return bcdConditionCodes;
+    }
+
     public void updateAddFlags(long source, long destination, long result, int bits) {
         long mask = maskFor(bits);
         long signBit = signBitFor(bits);
@@ -207,11 +229,20 @@ public final class StatusRegister {
     }
 
     private void setBit(int bit, boolean set) {
+        boolean previousSupervisor = isSupervisorSet();
         if (set) {
             value = rawValue() | (1 << bit);
+            notifySupervisorModeChange(previousSupervisor);
             return;
         }
         value = rawValue() & ~(1 << bit);
+        notifySupervisorModeChange(previousSupervisor);
+    }
+
+    private void notifySupervisorModeChange(boolean previousSupervisor) {
+        if (supervisorModeListener != null && previousSupervisor != isSupervisorSet()) {
+            supervisorModeListener.onChange(isSupervisorSet());
+        }
     }
 
     private long maskFor(int bits) {
@@ -252,6 +283,11 @@ public final class StatusRegister {
         public void setCarry(boolean value) {
             StatusRegister.this.setCarry(value);
         }
+    }
+
+    @FunctionalInterface
+    public interface SupervisorModeListener {
+        void onChange(boolean supervisor);
     }
 
     private final class ArithmeticConditionCodes
@@ -310,4 +346,24 @@ public final class StatusRegister {
             StatusRegister.this.setExtend(value);
         }
     }
+
+    private final class BcdConditionCodes
+        implements Abcd.ConditionCodes, Sbcd.ConditionCodes, Nbcd.ConditionCodes {
+        @Override
+        public void clearZero() {
+            StatusRegister.this.setZero(false);
+        }
+
+        @Override
+        public void setCarry(boolean value) {
+            StatusRegister.this.setCarry(value);
+        }
+
+        @Override
+        public void setExtend(boolean value) {
+            StatusRegister.this.setExtend(value);
+        }
+    }
+
+    private final BcdConditionCodes bcdConditionCodes = new BcdConditionCodes();
 }

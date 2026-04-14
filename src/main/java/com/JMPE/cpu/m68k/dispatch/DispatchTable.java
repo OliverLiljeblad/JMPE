@@ -91,6 +91,7 @@ public final class DispatchTable {
 
     private void registerBuiltIns() {
         register(Opcode.ADD, new AddOp());
+        register(Opcode.ABCD, new AbcdOp());
         register(Opcode.ADDI, new AddiOp());
         register(Opcode.ADDA, new AddaOp());
         register(Opcode.ADDX, new AddxOp());
@@ -129,17 +130,21 @@ public final class DispatchTable {
         register(Opcode.LSL, new LslOp());
         register(Opcode.LSR, new LsrOp());
         register(Opcode.MOVE, new MoveOp());
+        register(Opcode.MOVE_FROM_USP, new MoveFromUspOp());
         register(Opcode.MOVE_FROM_SR, new MoveFromSrOp());
         register(Opcode.MOVE_TO_CCR, new MoveToCcrOp());
         register(Opcode.MOVE_TO_SR, new MoveToSrOp());
+        register(Opcode.MOVE_TO_USP, new MoveToUspOp());
         register(Opcode.MOVEA, new MoveaOp());
         register(Opcode.MOVEM_MEM_TO_REG, new MovemMemToRegOp());
         register(Opcode.MOVEM_REG_TO_MEM, new MovemRegToMemOp());
+        register(Opcode.MOVEP, new MovepOp());
         register(Opcode.MOVEQ, new MoveQOp());
         register(Opcode.MULS, new MulsOp());
         register(Opcode.MULU, new MuluOp());
         register(Opcode.NEG, new NegOp());
         register(Opcode.NEGX, new NegxOp());
+        register(Opcode.NBCD, new NbcdOp());
         register(Opcode.NOP, new NopOp());
         register(Opcode.NOT, new NotOp());
         register(Opcode.OR, new OrOp());
@@ -153,12 +158,14 @@ public final class DispatchTable {
         register(Opcode.ROXR, new RoxrOp());
         register(Opcode.RTS, new RtsOp());
         register(Opcode.Scc, new SccOp());
+        register(Opcode.SBCD, new SbcdOp());
         register(Opcode.SUB, new SubOp());
         register(Opcode.SUBA, new SubaOp());
         register(Opcode.SUBI, new SubiOp());
         register(Opcode.SUBQ, new SubqOp());
         register(Opcode.SUBX, new SubxOp());
         register(Opcode.SWAP, new SwapOp());
+        register(Opcode.TAS, new TasOp());
         register(Opcode.TST, new TstOp());
     }
 }

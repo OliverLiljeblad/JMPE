@@ -37,6 +37,8 @@ public final class M68kCpu {
         }
         this.registers = registers;
         this.statusRegister = statusRegister;
+        this.statusRegister.setSupervisorModeListener(this.registers::setSupervisorStackActive);
+        this.registers.setSupervisorStackActive(this.statusRegister.isSupervisorSet());
     }
 
     public Registers registers() {
@@ -59,13 +61,12 @@ public final class M68kCpu {
             throw new IllegalArgumentException("rom must not be null");
         }
 
-        registers.setStackPointer(rom.initialSupervisorStackPointer());
-        registers.setProgramCounter(rom.initialProgramCounter());
-
         statusRegister.setRawValue(0);
         statusRegister.setSupervisor(true);
         statusRegister.setTrace(false);
         statusRegister.setInterruptMask(RESET_INTERRUPT_MASK);
+        registers.setSupervisorStackPointer(rom.initialSupervisorStackPointer());
+        registers.setProgramCounter(rom.initialProgramCounter());
     }
 
     /**

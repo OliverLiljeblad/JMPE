@@ -111,6 +111,20 @@ final class DispatchSupport {
         throw new IllegalArgumentException(operation + " requires address-register " + role + " but was " + operand);
     }
 
+    static void requireDataAlterable(EffectiveAddress operand, String role, String operation) {
+        if (operand instanceof EffectiveAddress.DataReg
+            || operand instanceof EffectiveAddress.AddrRegInd
+            || operand instanceof EffectiveAddress.AddrRegIndPostInc
+            || operand instanceof EffectiveAddress.AddrRegIndPreDec
+            || operand instanceof EffectiveAddress.AddrRegIndDisp
+            || operand instanceof EffectiveAddress.AddrRegIndIndex
+            || operand instanceof EffectiveAddress.AbsoluteShort
+            || operand instanceof EffectiveAddress.AbsoluteLong) {
+            return;
+        }
+        throw new IllegalArgumentException(operation + " requires data-alterable " + role + " but was " + operand);
+    }
+
     static OperandResolver.Location resolveDestination(DecodedInstruction decoded, M68kCpu cpu, Bus bus) {
         return OperandResolver.resolveLocation(decoded.dst(), cpu, bus, decoded.size());
     }

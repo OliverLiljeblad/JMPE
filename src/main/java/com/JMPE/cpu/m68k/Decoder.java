@@ -777,6 +777,9 @@ public final class Decoder {
                 yield switch (sz) {
                     case 0b00 -> {
                         // NBCD — byte operation, no source EA
+                        if (mode == 0b001 || (mode == 0b111 && reg >= 0b010)) {
+                            throw new IllegalInstructionException(op, opAddr);
+                        }
                         EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
                         yield new DecodedInstruction(
                             Opcode.NBCD, Size.BYTE,
@@ -844,6 +847,9 @@ public final class Decoder {
                 if (sz == 0b11) {
                     // TAS — test-and-set; BYTE, atomic RMW on real hardware
                     EffectiveAddress dst = decodeEa(eaMode(op), regY(op), Size.BYTE, bus, cursor);
+                    if (!isDataAlterable(dst)) {
+                        throw new IllegalInstructionException(op, opAddr);
+                    }
                     yield new DecodedInstruction(
                         Opcode.TAS, Size.BYTE,
                         EffectiveAddress.none(), dst, 0, cursor[0]);
@@ -1590,6 +1596,17 @@ public final class Decoder {
             );
             default -> throw new IllegalInstructionException(op, opwordAddr);
         };
+    }
+
+    private static boolean isDataAlterable(EffectiveAddress operand) {
+        return operand instanceof EffectiveAddress.DataReg
+            || operand instanceof EffectiveAddress.AddrRegInd
+            || operand instanceof EffectiveAddress.AddrRegIndPostInc
+            || operand instanceof EffectiveAddress.AddrRegIndPreDec
+            || operand instanceof EffectiveAddress.AddrRegIndDisp
+            || operand instanceof EffectiveAddress.AddrRegIndIndex
+            || operand instanceof EffectiveAddress.AbsoluteShort
+            || operand instanceof EffectiveAddress.AbsoluteLong;
     }
 
     private static DecodedInstruction decodeAddSubX(

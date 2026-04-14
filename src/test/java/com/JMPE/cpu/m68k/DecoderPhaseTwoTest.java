@@ -124,8 +124,9 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
-    void decodesNegxNegAndSwapDataRegisterForms() throws IllegalInstructionException {
+    void decodesNegxNbcdNegAndSwapDataRegisterForms() throws IllegalInstructionException {
         DecodedInstruction negx = decoder.decode(0x4000, null, EXTENSION_PC);
+        DecodedInstruction nbcd = decoder.decode(0x4800, null, EXTENSION_PC);
         DecodedInstruction neg = decoder.decode(0x4400, null, EXTENSION_PC);
         DecodedInstruction swap = decoder.decode(0x4841, null, EXTENSION_PC);
 
@@ -134,6 +135,12 @@ class DecoderPhaseTwoTest {
         assertEquals(EffectiveAddress.none(), negx.src());
         assertEquals(EffectiveAddress.dataReg(0), negx.dst());
         assertEquals(EXTENSION_PC, negx.nextPc());
+
+        assertEquals(Opcode.NBCD, nbcd.opcode());
+        assertEquals(Size.BYTE, nbcd.size());
+        assertEquals(EffectiveAddress.none(), nbcd.src());
+        assertEquals(EffectiveAddress.dataReg(0), nbcd.dst());
+        assertEquals(EXTENSION_PC, nbcd.nextPc());
 
         assertEquals(Opcode.NEG, neg.opcode());
         assertEquals(Size.BYTE, neg.size());
@@ -146,6 +153,41 @@ class DecoderPhaseTwoTest {
         assertEquals(EffectiveAddress.none(), swap.src());
         assertEquals(EffectiveAddress.dataReg(1), swap.dst());
         assertEquals(EXTENSION_PC, swap.nextPc());
+    }
+
+    @Test
+    void decodesTasAndMoveUspForms() throws IllegalInstructionException {
+        DecodedInstruction tas = decoder.decode(0x4AC0, null, EXTENSION_PC);
+        DecodedInstruction moveToUsp = decoder.decode(0x4E62, null, EXTENSION_PC);
+        DecodedInstruction moveFromUsp = decoder.decode(0x4E6B, null, EXTENSION_PC);
+
+        assertEquals(Opcode.TAS, tas.opcode());
+        assertEquals(Size.BYTE, tas.size());
+        assertEquals(EffectiveAddress.none(), tas.src());
+        assertEquals(EffectiveAddress.dataReg(0), tas.dst());
+        assertEquals(EXTENSION_PC, tas.nextPc());
+
+        assertEquals(Opcode.MOVE_TO_USP, moveToUsp.opcode());
+        assertEquals(Size.LONG, moveToUsp.size());
+        assertEquals(EffectiveAddress.addrReg(2), moveToUsp.src());
+        assertEquals(EffectiveAddress.none(), moveToUsp.dst());
+        assertEquals(EXTENSION_PC, moveToUsp.nextPc());
+
+        assertEquals(Opcode.MOVE_FROM_USP, moveFromUsp.opcode());
+        assertEquals(Size.LONG, moveFromUsp.size());
+        assertEquals(EffectiveAddress.none(), moveFromUsp.src());
+        assertEquals(EffectiveAddress.addrReg(3), moveFromUsp.dst());
+        assertEquals(EXTENSION_PC, moveFromUsp.nextPc());
+    }
+
+    @Test
+    void rejectsNbcdToAddressRegisterDirect() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4808, null, EXTENSION_PC));
+    }
+
+    @Test
+    void rejectsTasToAddressRegisterDirect() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4AC8, null, EXTENSION_PC));
     }
 
     @Test

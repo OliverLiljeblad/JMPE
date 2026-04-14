@@ -17,6 +17,7 @@ import com.JMPE.cpu.m68k.instructions.bit.Bclr;
 import com.JMPE.cpu.m68k.instructions.bit.Bset;
 import com.JMPE.cpu.m68k.instructions.bit.Btst;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Abcd;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Adda;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addi;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addx;
@@ -27,13 +28,17 @@ import com.JMPE.cpu.m68k.instructions.arithmetic.Muls;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Mulu;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Neg;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Negx;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Nbcd;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Sbcd;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Suba;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Subx;
 import com.JMPE.cpu.m68k.instructions.control.Dbcc;
 import com.JMPE.cpu.m68k.instructions.control.Scc;
 import com.JMPE.cpu.m68k.instructions.data.Exg;
 import com.JMPE.cpu.m68k.instructions.data.Ext;
+import com.JMPE.cpu.m68k.instructions.data.Movep;
 import com.JMPE.cpu.m68k.instructions.data.Swap;
+import com.JMPE.cpu.m68k.instructions.data.Tas;
 import com.JMPE.cpu.m68k.instructions.shift.Roxl;
 import com.JMPE.cpu.m68k.instructions.shift.Roxr;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Subi;
@@ -85,6 +90,9 @@ class M68kCpuStepTest {
     private static final int SUBI_B_D0 = 0x0400;
     private static final int ADDI_B_D0 = 0x0600;
     private static final int TST_B_D0 = 0x4A00;
+    private static final int TAS_D0 = 0x4AC0;
+    private static final int MOVE_A2_TO_USP = 0x4E62;
+    private static final int MOVE_USP_TO_A3 = 0x4E6B;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
     private static final int BCHG_D0_D1 = 0x0141;
     private static final int BTST_D0_D1 = 0x0101;
@@ -92,17 +100,22 @@ class M68kCpuStepTest {
     private static final int BTST_TEST_VALUE = 0x0000_0002;
     private static final int BCLR_B_IMMEDIATE_DISP_A1 = 0x08A9;
     private static final int BSET_B_D4_A1 = 0x09D1;
+    private static final int MOVEP_W_DISP_A1_D0 = 0x0109;
+    private static final int MOVEP_L_D0_DISP_A1 = 0x01C9;
     private static final int NEGX_B_D0 = 0x4000;
     private static final int NEG_B_D0 = 0x4400;
+    private static final int NBCD_D0 = 0x4800;
     private static final int SWAP_D1 = 0x4841;
     private static final int EXT_W_D0 = 0x4880;
     private static final int DBRA_D0_DISP = 0x51C8;
     private static final int SNE_D0 = 0x56C0;
+    private static final int SBCD_D3_D2 = 0x8503;
     private static final int DIVU_W_D1_D2 = 0x84C1;
     private static final int DIVS_W_D1_D2 = 0x85C1;
     private static final int CMPA_L_A2_A1 = 0xB3CA;
     private static final int CMPM_B_A5_A3 = 0xB70D;
     private static final int SUBX_B_D4_D3 = 0x9704;
+    private static final int ABCD_D3_D2 = 0xC503;
     private static final int MULU_W_D1_D2 = 0xC4C1;
     private static final int MULS_W_D1_D2 = 0xC5C1;
     private static final int ADDA_W_D0_A0 = 0xD0C0;
@@ -1035,6 +1048,205 @@ class M68kCpuStepTest {
         assertEquals(4, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=CMPM"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndAddsPackedBcdForAbcd() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(3, 0x0000_0055);
+        cpu.registers().setData(2, 0x1234_0045);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, ABCD_D3_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x1234_0000, cpu.registers().data(2));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertTrue(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Abcd.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ABCD"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndSubtractsPackedBcdForSbcd() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(3, 0x0000_0001);
+        cpu.registers().setData(2, 0x1234_0000);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, SBCD_D3_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x1234_0099, cpu.registers().data(2));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Sbcd.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=SBCD"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndNegatesPackedBcdForNbcd() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 0x1234_0001);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setOverflow(true);
+        cpu.statusRegister().setZero(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, NBCD_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x1234_0099, cpu.registers().data(0));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Nbcd.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=NBCD"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndReadsSpacedBytesForMovepMemoryToRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(1, 0x0000_1FF0);
+        cpu.registers().setData(0, 0xABCD_5678);
+        cpu.statusRegister().setRawValue(0xA71F);
+        List<String> logs = new ArrayList<>();
+
+        AddressSpace bus = busWithWords(0x0000_1000, MOVEP_W_DISP_A1_D0, 0x0010);
+        bus.addRegion(new Ram(0x0000_2000, 0x100));
+        bus.writeByte(0x0000_2000, 0x12);
+        bus.writeByte(0x0000_2002, 0x34);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1004, report.after().programCounter());
+        assertEquals(0xABCD_1234, cpu.registers().data(0));
+        assertEquals(0xA71F, cpu.statusRegister().rawValue());
+        assertEquals(Movep.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVEP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001004"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndWritesSpacedBytesForMovepRegisterToMemory() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(1, 0x0000_1FF0);
+        cpu.registers().setData(0, 0x1234_5678);
+        cpu.statusRegister().setRawValue(0xA71F);
+        List<String> logs = new ArrayList<>();
+
+        AddressSpace bus = busWithWords(0x0000_1000, MOVEP_L_D0_DISP_A1, 0x0010);
+        bus.addRegion(new Ram(0x0000_2000, 0x100));
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1004, report.after().programCounter());
+        assertEquals(0x12, bus.readByte(0x0000_2000));
+        assertEquals(0x34, bus.readByte(0x0000_2002));
+        assertEquals(0x56, bus.readByte(0x0000_2004));
+        assertEquals(0x78, bus.readByte(0x0000_2006));
+        assertEquals(0xA71F, cpu.statusRegister().rawValue());
+        assertEquals(Movep.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVEP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001004"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndTestsAndSetsForTas() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 0x1234_5601);
+        cpu.statusRegister().setExtend(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithWords(0x0000_1000, TAS_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x1234_5681, cpu.registers().data(0));
+        assertFalse(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Tas.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TAS"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndMovesAddressRegisterToStoredUsp() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.statusRegister().setSupervisor(true);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.registers().setAddress(2, 0x0000_3456);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithWords(0x0000_1000, MOVE_A2_TO_USP), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_3456, cpu.registers().userStackPointer());
+        assertEquals(0x0000_2000, cpu.registers().stackPointer());
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVE_TO_USP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndMovesStoredUspIntoAddressRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.statusRegister().setSupervisor(true);
+        cpu.registers().setUserStackPointer(0x0000_4567);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithWords(0x0000_1000, MOVE_USP_TO_A3), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_4567, cpu.registers().address(3));
+        assertEquals(4, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVE_FROM_USP"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 
