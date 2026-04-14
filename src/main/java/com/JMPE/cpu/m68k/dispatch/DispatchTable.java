@@ -99,6 +99,7 @@ public final class DispatchTable {
         register(Opcode.ASL, new AslOp());
         register(Opcode.ASR, new AsrOp());
         register(Opcode.BCC, new BccOp());
+        register(Opcode.BCLR, new BclrOp());
         register(Opcode.BSET, new BsetOp());
         register(Opcode.BRA, new BraOp());
         register(Opcode.BSR, new BsrOp());

@@ -16,7 +16,13 @@ public final class Via6522 {
     private static final int ORA = 1;
     private static final int DDRB = 2;
     private static final int DDRA = 3;
+    private static final int IFR = 13;
+    private static final int IER = 14;
     private static final int ORA_NO_HANDSHAKE = 15;
+    private static final int INTERRUPT_BITS = 0x7F;
+    private static final int IER_SET_MASK = 0x80;
+    private static final int IRQ_SUMMARY_FLAG = 0x80;
+    private static final int CA1_INTERRUPT_FLAG = 0x02;
 
     private final int[] registers = new int[REGISTER_COUNT];
     private final IntConsumer portAListener;
@@ -25,11 +31,15 @@ public final class Via6522 {
     private int ora = 0xFF;
     private int ddrb;
     private int ddra;
+    private int interruptFlags = CA1_INTERRUPT_FLAG;
+    private int interruptEnable;
 
     public Via6522(IntConsumer portAListener) {
         this.portAListener = Objects.requireNonNull(portAListener, "portAListener must not be null");
         registers[ORA] = ora;
         registers[ORA_NO_HANDSHAKE] = ora;
+        registers[IFR] = interruptFlags;
+        registers[IER] = interruptEnable;
         updatePortA();
     }
 
@@ -39,6 +49,8 @@ public final class Via6522 {
             case ORA, ORA_NO_HANDSHAKE -> ora;
             case DDRB -> ddrb;
             case DDRA -> ddra;
+            case IFR -> readInterruptFlagRegister();
+            case IER -> IER_SET_MASK | interruptEnable;
             default -> registers[normalize(register)];
         };
     }
@@ -67,8 +79,42 @@ public final class Via6522 {
                 registers[DDRA] = byteValue;
                 updatePortA();
             }
+            case IFR -> clearInterruptFlags(byteValue);
+            case IER -> updateInterruptEnable(byteValue);
             default -> registers[normalized] = byteValue;
         }
+    }
+
+    private int readInterruptFlagRegister() {
+        int value = composeInterruptFlagRegister();
+        if ((interruptFlags & CA1_INTERRUPT_FLAG) == 0) {
+            interruptFlags |= CA1_INTERRUPT_FLAG;
+            registers[IFR] = interruptFlags;
+        }
+        return value;
+    }
+
+    private int composeInterruptFlagRegister() {
+        int value = interruptFlags & INTERRUPT_BITS;
+        if ((value & interruptEnable) != 0) {
+            value |= IRQ_SUMMARY_FLAG;
+        }
+        return value;
+    }
+
+    private void clearInterruptFlags(int value) {
+        interruptFlags &= ~(value & INTERRUPT_BITS);
+        registers[IFR] = interruptFlags;
+    }
+
+    private void updateInterruptEnable(int value) {
+        int interruptMask = value & INTERRUPT_BITS;
+        if ((value & IER_SET_MASK) != 0) {
+            interruptEnable |= interruptMask;
+        } else {
+            interruptEnable &= ~interruptMask;
+        }
+        registers[IER] = interruptEnable;
     }
 
     private void updatePortA() {

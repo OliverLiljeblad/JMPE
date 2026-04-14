@@ -11,6 +11,7 @@ import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
+import com.JMPE.cpu.m68k.instructions.bit.Bclr;
 import com.JMPE.cpu.m68k.instructions.bit.Bset;
 import com.JMPE.cpu.m68k.instructions.bit.Btst;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
@@ -67,6 +68,7 @@ class M68kCpuStepTest {
     private static final int BTST_D0_D1 = 0x0101;
     private static final int BTST_BIT_NUMBER = 33;
     private static final int BTST_TEST_VALUE = 0x0000_0002;
+    private static final int BCLR_B_IMMEDIATE_DISP_A1 = 0x08A9;
     private static final int BSET_B_D4_A1 = 0x09D1;
     private static final int DBRA_D0_DISP = 0x51C8;
     private static final int SUBA_L_D0_A0 = 0x91C0;
@@ -918,6 +920,32 @@ class M68kCpuStepTest {
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=BSET"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndWritesMemoryForBclr() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(1, 0x0000_2000);
+        cpu.statusRegister().setCarry(true);
+        List<String> logs = new ArrayList<>();
+
+        AddressSpace bus = busWithWords(0x0000_1000, BCLR_B_IMMEDIATE_DISP_A1, 0x0000, 0x0400);
+        bus.addRegion(new Ram(0x0000_2400, 0x100));
+        bus.writeByte(0x0000_2400, 0x03);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1006, report.after().programCounter());
+        assertEquals(0x02, bus.readByte(0x0000_2400));
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertEquals(Bclr.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BCLR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001006"));
     }
 
     @Test

@@ -72,6 +72,10 @@ class MacPlusMachineTest {
         assertEquals(0x0040_0100, machine.bus().readLong(0x0000_0004));
         assertEquals(0, machine.bus().readLong(0x00F8_0000));
         assertEquals(0, machine.bus().readByte(0x009F_FFF7));
+        assertEquals(0x02, machine.bus().readByte(0x00EF_FBFE));
+        machine.bus().writeByte(0x00EF_FBFE, 0x02);
+        assertEquals(0x00, machine.bus().readByte(0x00EF_FBFE));
+        assertEquals(0x02, machine.bus().readByte(0x00EF_FBFE));
 
         machine.bus().writeByte(0x00E8_0600, 0x10);
         machine.bus().writeByte(0x00E8_0200, 0x00);

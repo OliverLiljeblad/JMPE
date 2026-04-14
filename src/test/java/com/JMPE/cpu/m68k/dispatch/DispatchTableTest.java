@@ -115,6 +115,7 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.ASL, AslOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ASR, AsrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.BCC, BccOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.BCLR, BclrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.BSET, BsetOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.BRA, BraOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.BSR, BsrOp.class);
