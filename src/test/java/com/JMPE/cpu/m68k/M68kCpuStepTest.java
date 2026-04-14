@@ -9,6 +9,7 @@ import com.JMPE.bus.AddressSpace;
 import com.JMPE.bus.Ram;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.DivideByZeroException;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.bit.Bchg;
@@ -20,6 +21,10 @@ import com.JMPE.cpu.m68k.instructions.arithmetic.Adda;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addi;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Addx;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Cmpa;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Divs;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Divu;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Muls;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Mulu;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Neg;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Negx;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Suba;
@@ -93,9 +98,13 @@ class M68kCpuStepTest {
     private static final int EXT_W_D0 = 0x4880;
     private static final int DBRA_D0_DISP = 0x51C8;
     private static final int SNE_D0 = 0x56C0;
+    private static final int DIVU_W_D1_D2 = 0x84C1;
+    private static final int DIVS_W_D1_D2 = 0x85C1;
     private static final int CMPA_L_A2_A1 = 0xB3CA;
     private static final int CMPM_B_A5_A3 = 0xB70D;
     private static final int SUBX_B_D4_D3 = 0x9704;
+    private static final int MULU_W_D1_D2 = 0xC4C1;
+    private static final int MULS_W_D1_D2 = 0xC5C1;
     private static final int ADDA_W_D0_A0 = 0xD0C0;
     private static final int ADDX_B_D4_D3 = 0xD704;
     private static final int SUBA_L_D0_A0 = 0x91C0;
@@ -1026,6 +1035,137 @@ class M68kCpuStepTest {
         assertEquals(4, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=CMPM"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndMultipliesUnsignedWordIntoLongForMulu() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(1, 0x0000_0003);
+        cpu.registers().setData(2, 0xAAAA_0004);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, MULU_W_D1_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x0000_000C, cpu.registers().data(2));
+        assertFalse(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Mulu.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MULU"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndMultipliesSignedWordIntoLongForMuls() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(1, 0x0000_FFFE);
+        cpu.registers().setData(2, 0xAAAA_0003);
+        cpu.statusRegister().setExtend(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, MULS_W_D1_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0xFFFF_FFFA, cpu.registers().data(2));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Muls.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MULS"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndDividesUnsignedLongByWordForDivu() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(1, 0x0000_0003);
+        cpu.registers().setData(2, 20);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, DIVU_W_D1_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x0002_0006, cpu.registers().data(2));
+        assertFalse(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Divu.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=DIVU"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndDividesSignedLongByWordForDivs() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(1, 0x0000_0003);
+        cpu.registers().setData(2, -20);
+        cpu.statusRegister().setExtend(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, DIVS_W_D1_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0xFFFE_FFFA, cpu.registers().data(2));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Divs.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=DIVS"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepLogsAndRethrowsDivideByZeroForDivu() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(1, 0x0000_0000);
+        cpu.registers().setData(2, 20);
+        cpu.statusRegister().setRawValue(0x001F);
+        List<String> logs = new ArrayList<>();
+
+        DivideByZeroException thrown = assertThrows(
+            DivideByZeroException.class,
+            () -> cpu.step(busWithOpword(0x0000_1000, DIVU_W_D1_D2), new DispatchTable(), logs::add)
+        );
+
+        assertEquals("Integer divide by zero triggered exception vector 5", thrown.getMessage());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertEquals(20, cpu.registers().data(2));
+        assertEquals(0x001F, cpu.statusRegister().rawValue());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] ERR op=DIVU"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 

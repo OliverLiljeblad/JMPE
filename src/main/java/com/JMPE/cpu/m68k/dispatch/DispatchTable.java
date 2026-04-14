@@ -115,6 +115,8 @@ public final class DispatchTable {
         register(Opcode.CMPI, new CmpiOp());
         register(Opcode.CMPM, new CmpmOp());
         register(Opcode.DBcc, new DbccOp());
+        register(Opcode.DIVS, new DivsOp());
+        register(Opcode.DIVU, new DivuOp());
         register(Opcode.EOR, new EorOp());
         register(Opcode.EORI, new EoriOp());
         register(Opcode.EORI_TO_CCR, new EoriToCcrOp());
@@ -134,6 +136,8 @@ public final class DispatchTable {
         register(Opcode.MOVEM_MEM_TO_REG, new MovemMemToRegOp());
         register(Opcode.MOVEM_REG_TO_MEM, new MovemRegToMemOp());
         register(Opcode.MOVEQ, new MoveQOp());
+        register(Opcode.MULS, new MulsOp());
+        register(Opcode.MULU, new MuluOp());
         register(Opcode.NEG, new NegOp());
         register(Opcode.NEGX, new NegxOp());
         register(Opcode.NOP, new NopOp());
