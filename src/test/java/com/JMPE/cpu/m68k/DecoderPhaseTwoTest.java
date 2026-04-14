@@ -88,6 +88,24 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesExtWordAndLongDataRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction extWord = decoder.decode(0x4880, null, EXTENSION_PC);
+        DecodedInstruction extLong = decoder.decode(0x48C1, null, EXTENSION_PC);
+
+        assertEquals(Opcode.EXT, extWord.opcode());
+        assertEquals(Size.WORD, extWord.size());
+        assertEquals(EffectiveAddress.none(), extWord.src());
+        assertEquals(EffectiveAddress.dataReg(0), extWord.dst());
+        assertEquals(EXTENSION_PC, extWord.nextPc());
+
+        assertEquals(Opcode.EXT, extLong.opcode());
+        assertEquals(Size.LONG, extLong.size());
+        assertEquals(EffectiveAddress.none(), extLong.src());
+        assertEquals(EffectiveAddress.dataReg(1), extLong.dst());
+        assertEquals(EXTENSION_PC, extLong.nextPc());
+    }
+
+    @Test
     void decodesBraWithByteDisplacement() throws IllegalInstructionException {
         DecodedInstruction decoded = decoder.decode(0x60FE, null, EXTENSION_PC);
 

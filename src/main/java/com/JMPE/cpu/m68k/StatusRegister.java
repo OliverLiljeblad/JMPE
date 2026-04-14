@@ -10,6 +10,7 @@ import com.JMPE.cpu.m68k.instructions.shift.Asr;
 import com.JMPE.cpu.m68k.instructions.shift.Lsl;
 import com.JMPE.cpu.m68k.instructions.shift.Lsr;
 import com.JMPE.cpu.m68k.instructions.shift.Roxl;
+import com.JMPE.cpu.m68k.instructions.shift.Roxr;
 
 /**
  * Motorola 68000 status register model.
@@ -163,6 +164,10 @@ public final class StatusRegister {
         return shiftConditionCodes;
     }
 
+    public Roxr.ConditionCodes roxrConditionCodes() {
+        return shiftConditionCodes;
+    }
+
     public void updateAddFlags(long source, long destination, long result, int bits) {
         long mask = maskFor(bits);
         long signBit = signBitFor(bits);
@@ -278,7 +283,8 @@ public final class StatusRegister {
     }
 
     private final class ShiftConditionCodes
-        implements Asl.ConditionCodes, Asr.ConditionCodes, Lsl.ConditionCodes, Lsr.ConditionCodes, Roxl.ConditionCodes {
+        implements Asl.ConditionCodes, Asr.ConditionCodes, Lsl.ConditionCodes, Lsr.ConditionCodes,
+        Roxl.ConditionCodes, Roxr.ConditionCodes {
         @Override
         public void setNegative(boolean value) {
             StatusRegister.this.setNegative(value);

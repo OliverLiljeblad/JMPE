@@ -114,6 +114,7 @@ public final class DispatchTable {
         register(Opcode.EORI, new EoriOp());
         register(Opcode.EORI_TO_CCR, new EoriToCcrOp());
         register(Opcode.EORI_TO_SR, new EoriToSrOp());
+        register(Opcode.EXT, new ExtOp());
         register(Opcode.JMP, new JmpOp());
         register(Opcode.JSR, new JsrOp());
         register(Opcode.LEA, new LeaOp());
@@ -137,6 +138,7 @@ public final class DispatchTable {
         register(Opcode.ROL, new RolOp());
         register(Opcode.ROR, new RorOp());
         register(Opcode.ROXL, new RoxlOp());
+        register(Opcode.ROXR, new RoxrOp());
         register(Opcode.RTS, new RtsOp());
         register(Opcode.Scc, new SccOp());
         register(Opcode.SUB, new SubOp());

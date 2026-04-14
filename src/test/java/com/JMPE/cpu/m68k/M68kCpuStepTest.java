@@ -19,7 +19,9 @@ import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Suba;
 import com.JMPE.cpu.m68k.instructions.control.Dbcc;
 import com.JMPE.cpu.m68k.instructions.control.Scc;
+import com.JMPE.cpu.m68k.instructions.data.Ext;
 import com.JMPE.cpu.m68k.instructions.shift.Roxl;
+import com.JMPE.cpu.m68k.instructions.shift.Roxr;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -73,10 +75,12 @@ class M68kCpuStepTest {
     private static final int BTST_TEST_VALUE = 0x0000_0002;
     private static final int BCLR_B_IMMEDIATE_DISP_A1 = 0x08A9;
     private static final int BSET_B_D4_A1 = 0x09D1;
+    private static final int EXT_W_D0 = 0x4880;
     private static final int DBRA_D0_DISP = 0x51C8;
     private static final int SNE_D0 = 0x56C0;
     private static final int SUBA_L_D0_A0 = 0x91C0;
     private static final int ROXL_B_D1_D2 = 0xE332;
+    private static final int ROXR_L_1_D2 = 0xE292;
 
     @Test
     void stepFetchesDecodesDispatchesAndAdvancesPcForNop() throws IllegalInstructionException {
@@ -896,6 +900,56 @@ class M68kCpuStepTest {
         assertEquals(Roxl.EXECUTION_CYCLES, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=ROXL"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndRotatesThroughExtendForRoxr() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(2, 0x0000_0001);
+        cpu.statusRegister().setExtend(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, ROXR_L_1_D2), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x8000_0000, cpu.registers().data(2));
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertEquals(Roxr.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ROXR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndSignExtendsByteToWordForExt() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 0x1234_5680);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, EXT_W_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x1234_FF80, cpu.registers().data(0));
+        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isCarrySet());
+        assertTrue(cpu.statusRegister().isExtendSet());
+        assertEquals(Ext.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=EXT"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 
