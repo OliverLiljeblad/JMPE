@@ -91,6 +91,7 @@ public final class DispatchTable {
 
     private void registerBuiltIns() {
         register(Opcode.ADD, new AddOp());
+        register(Opcode.ADDI, new AddiOp());
         register(Opcode.ADDQ, new AddqOp());
         register(Opcode.AND, new AndOp());
         register(Opcode.ANDI, new AndiOp());

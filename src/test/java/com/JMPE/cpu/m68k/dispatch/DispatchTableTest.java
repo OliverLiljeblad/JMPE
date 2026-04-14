@@ -110,6 +110,7 @@ class DispatchTableTest {
         DispatchTable dispatchTable = new DispatchTable();
 
         assertBuiltInHandler(dispatchTable, Opcode.ADD, AddOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ADDI, AddiOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ADDQ, AddqOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.AND, AndOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ASL, AslOp.class);

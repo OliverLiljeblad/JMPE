@@ -10,7 +10,7 @@ import java.util.Objects;
 /**
  * Dispatch-layer executor for decoded {@code ADDI} instructions.
  */
-public final class Addiop implements Op {
+public final class AddiOp implements Op {
 
     @Override
     public int execute(M68kCpu cpu, Bus bus, DecodedInstruction decoded) {
@@ -19,7 +19,7 @@ public final class Addiop implements Op {
 
         DispatchSupport.requireOpcode(decoded, Opcode.ADDI, "ADDI");
         DispatchSupport.requireSized(decoded, "ADDI");
-        DispatchSupport.requireSource(decoded, "ADDI");
+        DispatchSupport.requireImmediateSource(decoded, "ADDI");
         DispatchSupport.requireDestination(decoded, "ADDI");
         DispatchSupport.requireNoExtension(decoded, "ADDI");
 
@@ -30,7 +30,7 @@ public final class Addiop implements Op {
             () -> DispatchSupport.readSource(decoded, cpu, bus),
             destination::read,
             destination::write,
-            cpu.statusRegister().addConditionCodes()  // returns Add.ConditionCodes — matches perfectly
+            cpu.statusRegister().addConditionCodes()
         );
     }
 }
