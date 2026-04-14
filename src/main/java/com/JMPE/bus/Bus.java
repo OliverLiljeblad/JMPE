@@ -39,11 +39,11 @@ import com.JMPE.cpu.m68k.exceptions.BusErrorException;
  * The 68000 requires that word and long accesses use even addresses.
  * Accessing an odd address for a word or long read/write causes the
  * {@code AddressSpace} implementation to throw
- * {@link AddressErrorException}.  The CPU will later route that through a
- * distinct group-0 exception path; callers need not pre-check alignment.
+ * {@link AddressErrorException}.  The CPU routes that through the 68000
+ * group-0 Address Error exception path, so callers need not pre-check alignment.
  *
  * <p>An access to an unmapped region throws {@link BusErrorException},
- * likewise reserved for the CPU's future group-0 fault handling.
+ * likewise routed through the 68000 group-0 Bus Error path.
  *
  * <h2>Endianness</h2>
  * All multi-byte accesses are big-endian, matching the 68000 and the Mac Plus

@@ -5,6 +5,7 @@ import com.JMPE.bus.Rom;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher;
+import com.JMPE.cpu.m68k.exceptions.Group0Fault;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 
@@ -21,6 +22,12 @@ public final class M68kCpu {
     private final Registers registers;
     private final StatusRegister statusRegister;
     private boolean stopped;
+
+    private enum Group0AccessPhase {
+        OPCODE_FETCH,
+        EXTENSION_FETCH,
+        EXECUTE
+    }
 
     public M68kCpu() {
         this(new Registers(), new StatusRegister());
@@ -123,15 +130,23 @@ public final class M68kCpu {
             reporter.accept(report.toLogLine());
             return report;
         }
-        int opword = bus.readWord(registers.programCounter());
-        String instructionName = String.format("0x%04X", opword & 0xFFFF);
+        int opword = 0;
+        boolean opcodeFetched = false;
+        Group0AccessPhase group0AccessPhase = Group0AccessPhase.OPCODE_FETCH;
+        String instructionName = "0x????";
 
         try {
+            opword = bus.readWord(registers.programCounter());
+            opcodeFetched = true;
+            instructionName = String.format("0x%04X", opword & 0xFFFF);
+
+            group0AccessPhase = Group0AccessPhase.EXTENSION_FETCH;
             DecodedInstruction decoded = DECODER.decode(opword, bus, registers.programCounter() + 2);
             instructionName = decoded.opcode().name();
 
             registers.setProgramCounter(decoded.nextPc());
             Op handler = dispatchTable.lookup(decoded.opcode());
+            group0AccessPhase = Group0AccessPhase.EXECUTE;
             int cycles = handler.execute(this, bus, decoded);
 
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
@@ -150,6 +165,24 @@ public final class M68kCpu {
             reporter.accept(report.toLogLine());
             throw exception;
         } catch (RuntimeException exception) {
+            if (exception instanceof Group0Fault group0Fault) {
+                ExceptionDispatcher.dispatchGroup0Fault(
+                    this,
+                    bus,
+                    group0Fault,
+                    savedGroup0ProgramCounter(before, group0AccessPhase),
+                    opcodeFetched ? opword : 0,
+                    group0AccessPhase != Group0AccessPhase.EXECUTE,
+                    isSupervisorSet(before.statusRegister())
+                );
+                if (!opcodeFetched && group0AccessPhase == Group0AccessPhase.OPCODE_FETCH) {
+                    instructionName = group0Fault.exceptionVector().name();
+                }
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
             if (ExceptionDispatcher.dispatchIfSupported(this, bus, exception)) {
                 StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
                 StepReport report = StepReport.success(instructionName, before, after, 0);
@@ -206,6 +239,17 @@ public final class M68kCpu {
 
     public StepReport executeStepWithConsoleReport(String instructionName, StepExecutor stepExecutor) {
         return executeStepWithReport(instructionName, stepExecutor, System.out::println);
+    }
+
+    private static int savedGroup0ProgramCounter(StepSnapshot before, Group0AccessPhase group0AccessPhase) {
+        return switch (group0AccessPhase) {
+            case OPCODE_FETCH -> before.programCounter();
+            case EXTENSION_FETCH, EXECUTE -> before.programCounter() + 2;
+        };
+    }
+
+    private static boolean isSupervisorSet(int rawStatusRegister) {
+        return (rawStatusRegister & (1 << 13)) != 0;
     }
 
     @FunctionalInterface

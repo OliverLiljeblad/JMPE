@@ -50,6 +50,41 @@ class ExceptionDispatcherTest {
     }
 
     @Test
+    void dispatchGroup0FaultPushesExtendedFrameOnSupervisorStackAndLoadsHandler() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        bus.writeLong(ExceptionVector.ADDRESS_ERROR.vectorAddress(), 0x0000_1234);
+        cpu.registers().setUserStackPointer(0x0000_3000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.registers().setProgramCounter(0x0000_1002);
+        cpu.statusRegister().setRawValue(0x8005);
+
+        ExceptionDispatcher.dispatchGroup0Fault(
+            cpu,
+            bus,
+            new AddressErrorException(0x0000_1235, FaultAccessType.READ),
+            0x0000_1002,
+            0x4A50,
+            false,
+            false
+        );
+
+        assertAll(
+            () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
+            () -> assertEquals(0x0000_3000, cpu.registers().userStackPointer()),
+            () -> assertEquals(0x0000_1FF2, cpu.registers().supervisorStackPointer()),
+            () -> assertEquals(0x2005, cpu.statusRegister().rawValue()),
+            () -> assertFalse(cpu.statusRegister().isTraceSet()),
+            () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
+            () -> assertEquals(0x0019, bus.readWord(0x0000_1FF2)),
+            () -> assertEquals(0x0000_1235, bus.readLong(0x0000_1FF4)),
+            () -> assertEquals(0x4A50, bus.readWord(0x0000_1FF8)),
+            () -> assertEquals(0x8005, bus.readWord(0x0000_1FFA)),
+            () -> assertEquals(0x0000_1002, bus.readLong(0x0000_1FFC))
+        );
+    }
+
+    @Test
     void dispatchIfSupportedLeavesGroupZeroFaultsUnhandledForNow() {
         AddressSpace bus = flatRamBus();
         M68kCpu cpu = new M68kCpu();

@@ -99,6 +99,7 @@ class M68kCpuStepTest {
     private static final int SUBI_B_D0 = 0x0400;
     private static final int ADDI_B_D0 = 0x0600;
     private static final int TST_B_D0 = 0x4A00;
+    private static final int TST_W_A0 = 0x4A50;
     private static final int TAS_D0 = 0x4AC0;
     private static final int LINK_A6_NEG8 = 0x4E56;
     private static final int UNLK_A6 = 0x4E5E;
@@ -114,6 +115,10 @@ class M68kCpuStepTest {
     private static final int LINE_F_0234 = 0xF234;
     private static final int TEST_USER_STACK_POINTER = 0x0000_3000;
     private static final int TEST_SUPERVISOR_STACK_POINTER = 0x0000_2000;
+    private static final int GROUP0_SSW_USER_PROGRAM_READ = 0x0012;
+    private static final int GROUP0_SSW_SUPERVISOR_PROGRAM_READ = 0x0016;
+    private static final int GROUP0_SSW_USER_DATA_READ = 0x0019;
+    private static final int GROUP0_SSW_SUPERVISOR_DATA_READ = 0x001D;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
     private static final int BCHG_D0_D1 = 0x0141;
     private static final int BTST_D0_D1 = 0x0101;
@@ -1572,6 +1577,119 @@ class M68kCpuStepTest {
         assertEquals(2, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=STOP"));
         assertTrue(logs.get(1).contains("[m68k-step] OK op=STOPPED"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddOpcodeFetch() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1001);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0xA700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2700, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_PROGRAM_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_1001, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(0x0000, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0xA700, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1001, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ADDRESS_ERROR"));
+        assertTrue(logs.get(0).contains("pc=0x00001001->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsBusErrorForUnmappedOpcodeFetch() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_5000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x8000);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.BUS_ERROR, 0x0000_1234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2000, cpu.statusRegister().rawValue());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().userStackPointer());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_USER_PROGRAM_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_5000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(0x0000, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x8000, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_5000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BUS_ERROR"));
+        assertTrue(logs.get(0).contains("pc=0x00005000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddDataRead() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(0, 0x0000_1235);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, TST_W_A0);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2015, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_USER_DATA_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_1235, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(TST_W_A0, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsBusErrorForUnmappedDataRead() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(0, 0x0000_5000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0xA700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.BUS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, TST_W_A0);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2700, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_DATA_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_5000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(TST_W_A0, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0xA700, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 
     @Test

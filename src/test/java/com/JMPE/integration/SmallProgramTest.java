@@ -64,6 +64,9 @@ class SmallProgramTest {
     private static final int CMPI_BYTE_IMMEDIATE = 0x0001;
     private static final int CMPI_BYTE_INITIAL = 0x1234_5600;
     private static final int TST_B_D0 = 0x4A00;
+    private static final int TST_W_A0 = 0x4A50;
+    private static final int GROUP0_SSW_SUPERVISOR_PROGRAM_READ = 0x0016;
+    private static final int GROUP0_SSW_SUPERVISOR_DATA_READ = 0x001D;
     private static final int TEN_INSTRUCTION_PROGRAM_INITIAL_SR = 0x271F;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_D0 = 0x1234_5600;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_SR = 0x2010;
@@ -779,6 +782,65 @@ class SmallProgramTest {
     }
 
     @Test
+    void vectorsAddressErrorForOddOpcodeFetchThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.ADDRESS_ERROR.vectorAddress(), 0x0000_0400);
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithResetVectors(INITIAL_STACK_POINTER, INITIAL_PROGRAM_COUNTER + 1, NOP),
+            ROM_BASE,
+            lowMemory
+        );
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_PROGRAM_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
+        assertEquals(0x0000, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
+        assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ADDRESS_ERROR"));
+    }
+
+    @Test
+    void vectorsBusErrorForUnmappedDataReadThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.BUS_ERROR.vectorAddress(), 0x0000_0400);
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithSingleInstruction(TST_W_A0),
+            ROM_BASE,
+            lowMemory
+        );
+        machine.cpu().registers().setAddress(0, 0x0050_0000);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_DATA_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(0x0050_0000, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
+        assertEquals(TST_W_A0, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
+        assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 2, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+    }
+
+    @Test
     void stepsTenInstructionProgramThroughMachineLayer() throws IllegalInstructionException {
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(
             romBytesWithInstructionWords(tenInstructionProgramWords()),
@@ -955,25 +1017,30 @@ class SmallProgramTest {
     }
 
     private static byte[] romBytesWithInstructionWords(int... words) {
+        return romBytesWithResetVectors(INITIAL_STACK_POINTER, INITIAL_PROGRAM_COUNTER, words);
+    }
+
+    private static byte[] romBytesWithResetVectors(int initialStackPointer, int initialProgramCounter, int... words) {
         byte[] bytes = new byte[0x0200];
+        int programOffset = initialProgramCounter - ROM_BASE;
 
-        bytes[0] = 0x00;
-        bytes[1] = 0x00;
-        bytes[2] = 0x20;
-        bytes[3] = 0x00;
-
-        bytes[4] = 0x00;
-        bytes[5] = 0x40;
-        bytes[6] = 0x01;
-        bytes[7] = 0x00;
+        writeLong(bytes, 0x0000, initialStackPointer);
+        writeLong(bytes, 0x0004, initialProgramCounter);
 
         for (int index = 0; index < words.length; index++) {
             int word = words[index];
-            int offset = INSTRUCTION_OFFSET + (index * 2);
+            int offset = programOffset + (index * 2);
             bytes[offset] = (byte) ((word >>> 8) & 0xFF);
             bytes[offset + 1] = (byte) (word & 0xFF);
         }
         return bytes;
+    }
+
+    private static void writeLong(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value >>> 24);
+        target[offset + 1] = (byte) (value >>> 16);
+        target[offset + 2] = (byte) (value >>> 8);
+        target[offset + 3] = (byte) value;
     }
 
     private static void configureTstScenario(M68kCpu cpu) {

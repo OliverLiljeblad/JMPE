@@ -6,6 +6,15 @@ import com.JMPE.cpu.m68k.M68kCpu;
 import java.util.Objects;
 
 public final class ExceptionDispatcher {
+    private static final int GROUP0_INSTRUCTION_ACCESS = 0;
+    private static final int GROUP0_DATA_ACCESS = 0x08;
+    private static final int GROUP0_READ = 0x10;
+    private static final int GROUP0_WRITE = 0;
+    private static final int USER_DATA_FUNCTION_CODE = 0x01;
+    private static final int USER_PROGRAM_FUNCTION_CODE = 0x02;
+    private static final int SUPERVISOR_DATA_FUNCTION_CODE = 0x05;
+    private static final int SUPERVISOR_PROGRAM_FUNCTION_CODE = 0x06;
+
     private ExceptionDispatcher() {
     }
 
@@ -40,6 +49,53 @@ public final class ExceptionDispatcher {
         return false;
     }
 
+    public static void dispatchGroup0Fault(M68kCpu cpu,
+                                           Bus bus,
+                                           Group0Fault fault,
+                                           int savedProgramCounter,
+                                           int instructionRegister,
+                                           boolean instructionAccess,
+                                           boolean supervisorAccess) {
+        Objects.requireNonNull(cpu, "cpu must not be null");
+        Objects.requireNonNull(bus, "bus must not be null");
+        Objects.requireNonNull(fault, "fault must not be null");
+        if (fault.exceptionVector().frameKind() != ExceptionFrameKind.GROUP_0) {
+            throw new IllegalArgumentException(fault.exceptionVector() + " does not use the group-0 exception frame");
+        }
+
+        int savedStatusRegister = cpu.statusRegister().rawValue();
+
+        cpu.clearStopped();
+        cpu.statusRegister().setSupervisor(true);
+        cpu.statusRegister().setTrace(false);
+
+        int stackPointer = cpu.registers().stackPointer();
+        stackPointer -= Integer.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeLong(stackPointer, savedProgramCounter);
+
+        stackPointer -= Short.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeWord(stackPointer, savedStatusRegister);
+
+        stackPointer -= Short.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeWord(stackPointer, instructionRegister);
+
+        stackPointer -= Integer.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeLong(stackPointer, fault.faultAddress());
+
+        stackPointer -= Short.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeWord(
+            stackPointer,
+            buildGroup0StatusWord(fault.accessType(), instructionAccess, supervisorAccess)
+        );
+
+        cpu.registers().setProgramCounter(bus.readLong(fault.exceptionVector().vectorAddress()));
+    }
+
     private static void dispatchSimpleFrame(M68kCpu cpu, Bus bus, int vectorNumber) {
         int savedProgramCounter = cpu.registers().programCounter();
         int savedStatusRegister = cpu.statusRegister().rawValue();
@@ -58,5 +114,19 @@ public final class ExceptionDispatcher {
         bus.writeWord(stackPointer, savedStatusRegister);
 
         cpu.registers().setProgramCounter(bus.readLong(vectorNumber * 4));
+    }
+
+    private static int buildGroup0StatusWord(FaultAccessType accessType,
+                                             boolean instructionAccess,
+                                             boolean supervisorAccess) {
+        int readWrite = accessType == FaultAccessType.READ ? GROUP0_READ : GROUP0_WRITE;
+        int instructionNot = instructionAccess ? GROUP0_INSTRUCTION_ACCESS : GROUP0_DATA_ACCESS;
+        int functionCode;
+        if (supervisorAccess) {
+            functionCode = instructionAccess ? SUPERVISOR_PROGRAM_FUNCTION_CODE : SUPERVISOR_DATA_FUNCTION_CODE;
+        } else {
+            functionCode = instructionAccess ? USER_PROGRAM_FUNCTION_CODE : USER_DATA_FUNCTION_CODE;
+        }
+        return readWrite | instructionNot | functionCode;
     }
 }
