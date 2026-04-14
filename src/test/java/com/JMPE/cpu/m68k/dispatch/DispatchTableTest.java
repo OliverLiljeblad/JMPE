@@ -110,6 +110,7 @@ class DispatchTableTest {
         DispatchTable dispatchTable = new DispatchTable();
 
         assertBuiltInHandler(dispatchTable, Opcode.ADD, AddOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.ADDI, AddiOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ADDQ, AddqOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.AND, AndOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ASL, AslOp.class);
@@ -126,6 +127,7 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.DBcc, DbccOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.EOR, EorOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.EXT, ExtOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.EXG, ExgOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.JMP, JmpOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.JSR, JsrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LEA, LeaOp.class);
@@ -139,6 +141,7 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.MOVEM_MEM_TO_REG, MovemMemToRegOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEM_REG_TO_MEM, MovemRegToMemOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.MOVEQ, MoveQOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.NEG, NegOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.OR, OrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_CCR, OriToCcrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ORI_TO_SR, OriToSrOp.class);
@@ -151,7 +154,9 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.Scc, SccOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUB, SubOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBA, SubaOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.SUBI, SubiOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBQ, SubqOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.SWAP, SwapOp.class);
     }
 
     @Test

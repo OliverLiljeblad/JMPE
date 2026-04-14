@@ -54,6 +54,24 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesSubiAndAddiImmediateForms() throws IllegalInstructionException {
+        DecodedInstruction subi = decoder.decode(0x0400, busWithWords(EXTENSION_PC, 0x0001), EXTENSION_PC);
+        DecodedInstruction addi = decoder.decode(0x0600, busWithWords(EXTENSION_PC, 0x0001), EXTENSION_PC);
+
+        assertEquals(Opcode.SUBI, subi.opcode());
+        assertEquals(Size.BYTE, subi.size());
+        assertEquals(EffectiveAddress.immediate(1), subi.src());
+        assertEquals(EffectiveAddress.dataReg(0), subi.dst());
+        assertEquals(INSTRUCTION_PC + 4, subi.nextPc());
+
+        assertEquals(Opcode.ADDI, addi.opcode());
+        assertEquals(Size.BYTE, addi.size());
+        assertEquals(EffectiveAddress.immediate(1), addi.src());
+        assertEquals(EffectiveAddress.dataReg(0), addi.dst());
+        assertEquals(INSTRUCTION_PC + 4, addi.nextPc());
+    }
+
+    @Test
     void rejectsByteQuickToAddressRegister() {
         assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x5208, null, EXTENSION_PC));
     }
@@ -103,6 +121,24 @@ class DecoderPhaseTwoTest {
         assertEquals(EffectiveAddress.none(), extLong.src());
         assertEquals(EffectiveAddress.dataReg(1), extLong.dst());
         assertEquals(EXTENSION_PC, extLong.nextPc());
+    }
+
+    @Test
+    void decodesNegAndSwapDataRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction neg = decoder.decode(0x4400, null, EXTENSION_PC);
+        DecodedInstruction swap = decoder.decode(0x4841, null, EXTENSION_PC);
+
+        assertEquals(Opcode.NEG, neg.opcode());
+        assertEquals(Size.BYTE, neg.size());
+        assertEquals(EffectiveAddress.none(), neg.src());
+        assertEquals(EffectiveAddress.dataReg(0), neg.dst());
+        assertEquals(EXTENSION_PC, neg.nextPc());
+
+        assertEquals(Opcode.SWAP, swap.opcode());
+        assertEquals(Size.LONG, swap.size());
+        assertEquals(EffectiveAddress.none(), swap.src());
+        assertEquals(EffectiveAddress.dataReg(1), swap.dst());
+        assertEquals(EXTENSION_PC, swap.nextPc());
     }
 
     @Test
