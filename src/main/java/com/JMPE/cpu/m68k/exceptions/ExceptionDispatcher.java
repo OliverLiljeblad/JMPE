@@ -11,16 +11,36 @@ public final class ExceptionDispatcher {
 
     public static void dispatchSimpleVector(M68kCpu cpu, Bus bus, ExceptionVector vector) {
         Objects.requireNonNull(vector, "vector must not be null");
-        dispatchSimpleVector(cpu, bus, vector.vectorNumber());
+        if (!vector.usesSimpleFrame()) {
+            throw new IllegalArgumentException(vector + " does not use the simple six-byte exception frame");
+        }
+        dispatchSimpleVectorNumber(cpu, bus, vector.vectorNumber());
     }
 
-    public static void dispatchSimpleVector(M68kCpu cpu, Bus bus, int vectorNumber) {
+    /**
+     * Dispatches a simple six-byte exception frame for dynamic vectors such as TRAP #n.
+     */
+    public static void dispatchSimpleVectorNumber(M68kCpu cpu, Bus bus, int vectorNumber) {
         Objects.requireNonNull(cpu, "cpu must not be null");
         Objects.requireNonNull(bus, "bus must not be null");
         if (vectorNumber < 0) {
             throw new IllegalArgumentException("vectorNumber must not be negative");
         }
 
+        dispatchSimpleFrame(cpu, bus, vectorNumber);
+    }
+
+    public static boolean dispatchIfSupported(M68kCpu cpu, Bus bus, Exception exception) {
+        Objects.requireNonNull(exception, "exception must not be null");
+
+        if (exception instanceof SimpleVectoredException vectoredException) {
+            dispatchSimpleVector(cpu, bus, vectoredException.exceptionVector());
+            return true;
+        }
+        return false;
+    }
+
+    private static void dispatchSimpleFrame(M68kCpu cpu, Bus bus, int vectorNumber) {
         int savedProgramCounter = cpu.registers().programCounter();
         int savedStatusRegister = cpu.statusRegister().rawValue();
 
@@ -38,27 +58,5 @@ public final class ExceptionDispatcher {
         bus.writeWord(stackPointer, savedStatusRegister);
 
         cpu.registers().setProgramCounter(bus.readLong(vectorNumber * 4));
-    }
-
-    public static boolean dispatchIfSupported(M68kCpu cpu, Bus bus, Exception exception) {
-        Objects.requireNonNull(exception, "exception must not be null");
-
-        if (exception instanceof IllegalInstructionException) {
-            dispatchSimpleVector(cpu, bus, ExceptionVector.ILLEGAL_INSTRUCTION);
-            return true;
-        }
-        if (exception instanceof PrivilegeViolation privilegeViolation) {
-            dispatchSimpleVector(cpu, bus, privilegeViolation.vector());
-            return true;
-        }
-        if (exception instanceof DivideByZeroException divideByZeroException) {
-            dispatchSimpleVector(cpu, bus, divideByZeroException.vector());
-            return true;
-        }
-        if (exception instanceof ChkException chkException) {
-            dispatchSimpleVector(cpu, bus, chkException.vector());
-            return true;
-        }
-        return false;
     }
 }

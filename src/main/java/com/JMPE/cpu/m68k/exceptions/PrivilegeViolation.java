@@ -4,14 +4,12 @@ package com.JMPE.cpu.m68k.exceptions;
  * Thrown when privileged CPU state is accessed from user mode.
  *
  * <p>
- * The current runtime treats execution-time CPU faults such as bus/address
- * errors as unchecked exceptions that bubble through {@code M68kCpu.step()},
- * where they are logged and later can be routed through a fuller exception
- * dispatcher. Privilege violations follow the same model for now.
+ * Privilege violations currently enter through the 68000 simple six-byte exception
+ * frame path. Group-0 bus/address faults remain a separate later concern.
  * </p>
  */
-public class PrivilegeViolation extends RuntimeException {
-    private static final int VECTOR = 8;
+public class PrivilegeViolation extends RuntimeException implements SimpleVectoredException {
+    private static final int VECTOR = ExceptionVector.PRIVILEGE_VIOLATION.vectorNumber();
 
     public PrivilegeViolation() {
         this("Privileged instruction");
@@ -23,5 +21,10 @@ public class PrivilegeViolation extends RuntimeException {
 
     public int vector() {
         return VECTOR;
+    }
+
+    @Override
+    public ExceptionVector exceptionVector() {
+        return ExceptionVector.PRIVILEGE_VIOLATION;
     }
 }

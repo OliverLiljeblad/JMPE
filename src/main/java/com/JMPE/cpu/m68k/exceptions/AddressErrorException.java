@@ -5,9 +5,9 @@ package com.JMPE.cpu.m68k.exceptions;
  *
  * <p>The 68000 requires all word and long word bus cycles to use even
  * addresses.  An odd address causes the CPU to take an Address Error
- * exception (vector 3) <em>before</em> the bus cycle completes.  The CPU
- * loop catches this and routes it through
- * {@link com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher}.
+ * exception (vector 3) <em>before</em> the bus cycle completes.  That uses
+ * the 68000 group-0 frame format, so it is intentionally modeled separately
+ * from the current simple six-byte exception-entry path.
  *
  * <p>Unchecked for the same reason as {@link BusErrorException}.
  */

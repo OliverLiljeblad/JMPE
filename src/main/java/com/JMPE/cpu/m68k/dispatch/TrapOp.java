@@ -23,7 +23,7 @@ public final class TrapOp implements Op {
         DispatchSupport.requireNoSource(decoded, "TRAP");
         DispatchSupport.requireNoDestination(decoded, "TRAP");
 
-        ExceptionDispatcher.dispatchSimpleVector(cpu, bus, ExceptionVector.trapVectorNumber(decoded.extension()));
+        ExceptionDispatcher.dispatchSimpleVectorNumber(cpu, bus, ExceptionVector.trapVectorNumber(decoded.extension()));
         return EXECUTION_CYCLES;
     }
 }

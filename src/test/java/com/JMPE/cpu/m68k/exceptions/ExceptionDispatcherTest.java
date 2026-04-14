@@ -3,6 +3,7 @@ package com.JMPE.cpu.m68k.exceptions;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.JMPE.bus.AddressSpace;
@@ -33,6 +34,28 @@ class ExceptionDispatcherTest {
             () -> assertEquals(0x8005, bus.readWord(0x0000_1FFA)),
             () -> assertEquals(0x0000_1002, bus.readLong(0x0000_1FFC))
         );
+    }
+
+    @Test
+    void dispatchSimpleVectorRejectsGroupZeroVectors() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+
+        IllegalArgumentException thrown = assertThrows(
+            IllegalArgumentException.class,
+            () -> ExceptionDispatcher.dispatchSimpleVector(cpu, bus, ExceptionVector.BUS_ERROR)
+        );
+
+        assertEquals("BUS_ERROR does not use the simple six-byte exception frame", thrown.getMessage());
+    }
+
+    @Test
+    void dispatchIfSupportedLeavesGroupZeroFaultsUnhandledForNow() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+
+        assertFalse(ExceptionDispatcher.dispatchIfSupported(cpu, bus, new BusErrorException(0x0000_1234)));
+        assertFalse(ExceptionDispatcher.dispatchIfSupported(cpu, bus, new AddressErrorException(0x0000_1235)));
     }
 
     private static AddressSpace flatRamBus() {

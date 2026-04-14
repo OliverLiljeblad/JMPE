@@ -25,9 +25,9 @@ import java.util.List;
  * <h2>Unmapped accesses</h2>
  * A read or write to an address that no region covers fires a
  * {@link BusErrorException}.  On real Mac Plus hardware this would assert the
- * /BERR line, which causes the 68000 to take a Bus Error exception.  The CPU
- * catches {@code BusErrorException} and routes it through
- * {@link com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher}.
+ * /BERR line, which causes the 68000 to take a Bus Error exception through
+ * the group-0 frame path.  That CPU-side routing is intentionally kept
+ * separate from the current simple exception dispatcher.
  *
  * <h2>Region overlap</h2>
  * Overlapping regions are not permitted.  {@link #addRegion} throws
