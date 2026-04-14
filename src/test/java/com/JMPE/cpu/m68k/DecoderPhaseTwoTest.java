@@ -71,6 +71,23 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesSneToDataRegisterWithConditionPayload() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x56C0, null, EXTENSION_PC);
+
+        assertEquals(Opcode.Scc, decoded.opcode());
+        assertEquals(Size.BYTE, decoded.size());
+        assertEquals(EffectiveAddress.none(), decoded.src());
+        assertEquals(EffectiveAddress.dataReg(0), decoded.dst());
+        assertEquals(0x6, decoded.extension());
+        assertEquals(EXTENSION_PC, decoded.nextPc());
+    }
+
+    @Test
+    void rejectsSccToImmediateDestination() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x56FC, null, EXTENSION_PC));
+    }
+
+    @Test
     void decodesBraWithByteDisplacement() throws IllegalInstructionException {
         DecodedInstruction decoded = decoder.decode(0x60FE, null, EXTENSION_PC);
 

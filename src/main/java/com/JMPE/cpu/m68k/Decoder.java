@@ -1182,7 +1182,8 @@ public final class Decoder {
      * <p>For Scc/DBcc, bits 11:8 are the condition code. The DBcc form is the
      * special mode=001 slot and uses the low register field as a data register,
      * not an address register. DBcc always carries a signed 16-bit displacement
-     * extension word; Scc has no extension and still remains deferred.
+     * extension word; Scc instead writes a conditional byte result to an alterable
+     * destination EA and carries the raw condition in the decoded extension field.
      */
     private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) throws IllegalInstructionException {
         int sizeBits = sizeBits(op);
@@ -1199,7 +1200,23 @@ public final class Decoder {
                     cursor[0]
                 );
             }
-            throw new UnsupportedOperationException("Scc decode not implemented yet");
+            int opwordAddr = extPc - 2;
+            int mode = eaMode(op);
+            int reg = regY(op);
+            if (mode == 0b111 && reg >= 0b010) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+
+            int[] cursor = {extPc};
+            EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
+            return new DecodedInstruction(
+                Opcode.Scc,
+                Size.BYTE,
+                EffectiveAddress.none(),
+                dst,
+                condition(op),
+                cursor[0]
+            );
         }
 
         int opwordAddr = extPc - 2;

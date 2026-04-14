@@ -11,12 +11,14 @@ import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
+import com.JMPE.cpu.m68k.instructions.bit.Bchg;
 import com.JMPE.cpu.m68k.instructions.bit.Bclr;
 import com.JMPE.cpu.m68k.instructions.bit.Bset;
 import com.JMPE.cpu.m68k.instructions.bit.Btst;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.arithmetic.Suba;
 import com.JMPE.cpu.m68k.instructions.control.Dbcc;
+import com.JMPE.cpu.m68k.instructions.control.Scc;
 import com.JMPE.cpu.m68k.instructions.shift.Roxl;
 import org.junit.jupiter.api.Test;
 
@@ -65,12 +67,14 @@ class M68kCpuStepTest {
     private static final int CMPI_BYTE_INITIAL = 0x1234_5600;
     private static final int TST_B_D0 = 0x4A00;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
+    private static final int BCHG_D0_D1 = 0x0141;
     private static final int BTST_D0_D1 = 0x0101;
     private static final int BTST_BIT_NUMBER = 33;
     private static final int BTST_TEST_VALUE = 0x0000_0002;
     private static final int BCLR_B_IMMEDIATE_DISP_A1 = 0x08A9;
     private static final int BSET_B_D4_A1 = 0x09D1;
     private static final int DBRA_D0_DISP = 0x51C8;
+    private static final int SNE_D0 = 0x56C0;
     private static final int SUBA_L_D0_A0 = 0x91C0;
     private static final int ROXL_B_D1_D2 = 0xE332;
 
@@ -923,6 +927,29 @@ class M68kCpuStepTest {
     }
 
     @Test
+    void stepFetchesDecodesDispatchesAndTogglesBitForBchg() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 1);
+        cpu.registers().setData(1, 0x0000_0000);
+        cpu.statusRegister().setCarry(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, BCHG_D0_D1), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x0000_0002, cpu.registers().data(1));
+        assertTrue(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertEquals(Bchg.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BCHG"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
     void stepFetchesDecodesDispatchesAndWritesMemoryForBclr() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
@@ -965,6 +992,29 @@ class M68kCpuStepTest {
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=DBcc"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001006"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndWritesConditionalByteForScc() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setData(0, 0x1234_5600);
+        cpu.statusRegister().setZero(false);
+        cpu.statusRegister().setCarry(true);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, SNE_D0), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1002, report.after().programCounter());
+        assertEquals(0x1234_56FF, cpu.registers().data(0));
+        assertFalse(cpu.statusRegister().isZeroSet());
+        assertTrue(cpu.statusRegister().isCarrySet());
+        assertEquals(Scc.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=Scc"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
     }
 
     @Test

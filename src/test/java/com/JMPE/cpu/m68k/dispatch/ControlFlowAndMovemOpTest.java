@@ -164,6 +164,26 @@ class ControlFlowAndMovemOpTest {
     }
 
     @Test
+    void sccOpWritesConditionalByteWithoutTouchingFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x1234_5600);
+        cpu.statusRegister().setZero(false);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setCarry(true);
+
+        int cycles = new SccOp().execute(cpu, null, decoded(Opcode.Scc, Size.BYTE,
+            EffectiveAddress.none(), EffectiveAddress.dataReg(0), 0x6));
+
+        assertAll(
+            () -> assertEquals(4, cycles),
+            () -> assertEquals(0x1234_56FF, cpu.registers().data(0)),
+            () -> assertFalse(cpu.statusRegister().isZeroSet()),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertTrue(cpu.statusRegister().isCarrySet())
+        );
+    }
+
+    @Test
     void movemMemToRegOpLoadsRegistersAndAppliesPostincrementWriteback() {
         AddressSpace bus = stackAndCodeBus();
         M68kCpu cpu = new M68kCpu();
