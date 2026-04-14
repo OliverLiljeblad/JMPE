@@ -8,10 +8,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.JMPE.bus.AddressSpace;
 import com.JMPE.bus.Ram;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
+import com.JMPE.cpu.m68k.dispatch.LineATrapOp;
 import com.JMPE.cpu.m68k.dispatch.Op;
-import com.JMPE.cpu.m68k.exceptions.DivideByZeroException;
+import com.JMPE.cpu.m68k.dispatch.LineFTrapOp;
+import com.JMPE.cpu.m68k.dispatch.RteOp;
+import com.JMPE.cpu.m68k.dispatch.RtrOp;
+import com.JMPE.cpu.m68k.dispatch.StopOp;
+import com.JMPE.cpu.m68k.dispatch.TrapOp;
+import com.JMPE.cpu.m68k.dispatch.TrapvOp;
+import com.JMPE.cpu.m68k.exceptions.ExceptionVector;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
-import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.bit.Bchg;
 import com.JMPE.cpu.m68k.instructions.bit.Bclr;
 import com.JMPE.cpu.m68k.instructions.bit.Bset;
@@ -97,8 +103,17 @@ class M68kCpuStepTest {
     private static final int LINK_A6_NEG8 = 0x4E56;
     private static final int UNLK_A6 = 0x4E5E;
     private static final int RESET = 0x4E70;
+    private static final int STOP = 0x4E72;
+    private static final int RTE = 0x4E73;
+    private static final int TRAP_3 = 0x4E43;
+    private static final int TRAPV = 0x4E76;
+    private static final int RTR = 0x4E77;
     private static final int MOVE_A2_TO_USP = 0x4E62;
     private static final int MOVE_USP_TO_A3 = 0x4E6B;
+    private static final int LINE_A_0123 = 0xA123;
+    private static final int LINE_F_0234 = 0xF234;
+    private static final int TEST_USER_STACK_POINTER = 0x0000_3000;
+    private static final int TEST_SUPERVISOR_STACK_POINTER = 0x0000_2000;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
     private static final int BCHG_D0_D1 = 0x0141;
     private static final int BTST_D0_D1 = 0x0101;
@@ -469,27 +484,30 @@ class M68kCpuStepTest {
     }
 
     @Test
-    void stepLogsAndRethrowsPrivilegeViolationForAndiToSrInUserMode() {
+    void stepVectorsPrivilegeViolationForAndiToSrInUserMode() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
         configureAndiToSrUserModeScenario(cpu);
         List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.PRIVILEGE_VIOLATION, 0x0000_1234);
+        bus.writeWord(0x0000_1000, ANDI_TO_SR);
+        bus.writeWord(0x0000_1002, ANDI_TO_SR_IMMEDIATE);
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> cpu.step(
-                        busWithWords(0x0000_1000, ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE),
-                        new DispatchTable(),
-                        logs::add
-                )
-        );
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
 
-        assertEquals("ANDI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(0x0000_1004, cpu.registers().programCounter());
-        assertEquals(ANDI_TO_SR_USER_MODE_SR, cpu.statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x271F, cpu.statusRegister().rawValue());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().userStackPointer());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(ANDI_TO_SR_USER_MODE_SR, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1004, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=ANDI_TO_SR"));
-        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001004"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI_TO_SR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 
     @Test
@@ -705,27 +723,30 @@ class M68kCpuStepTest {
     }
 
     @Test
-    void stepLogsAndRethrowsPrivilegeViolationForEoriToSrInUserMode() {
+    void stepVectorsPrivilegeViolationForEoriToSrInUserMode() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
         configureEoriToSrUserModeScenario(cpu);
         List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.PRIVILEGE_VIOLATION, 0x0000_1234);
+        bus.writeWord(0x0000_1000, EORI_TO_SR);
+        bus.writeWord(0x0000_1002, EORI_TO_SR_IMMEDIATE);
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> cpu.step(
-                        busWithWords(0x0000_1000, EORI_TO_SR, EORI_TO_SR_IMMEDIATE),
-                        new DispatchTable(),
-                        logs::add
-                )
-        );
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
 
-        assertEquals("EORI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(0x0000_1004, cpu.registers().programCounter());
-        assertEquals(EORI_TO_SR_USER_MODE_SR, cpu.statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x271F, cpu.statusRegister().rawValue());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().userStackPointer());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(EORI_TO_SR_USER_MODE_SR, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1004, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=EORI_TO_SR"));
-        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001004"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=EORI_TO_SR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 
     @Test
@@ -1332,23 +1353,225 @@ class M68kCpuStepTest {
     }
 
     @Test
-    void stepLogsAndRethrowsPrivilegeViolationForResetInUserMode() {
+    void stepVectorsPrivilegeViolationForResetInUserMode() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
         cpu.statusRegister().setRawValue(0x071F);
         List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.PRIVILEGE_VIOLATION, 0x0000_1234);
+        bus.writeWord(0x0000_1000, RESET);
 
-        PrivilegeViolation thrown = assertThrows(
-            PrivilegeViolation.class,
-            () -> cpu.step(busWithOpword(0x0000_1000, RESET), new DispatchTable(), logs::add)
-        );
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
 
-        assertEquals("RESET requires supervisor mode", thrown.getMessage());
-        assertEquals(0x0000_1002, cpu.registers().programCounter());
-        assertEquals(0x071F, cpu.statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x271F, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x071F, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=RESET"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RESET"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndVectorsTrapImmediate() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x8005);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installTrapVector(bus, 3, 0x0000_1234);
+        bus.writeWord(0x0000_1000, TRAP_3);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1000, report.before().programCounter());
+        assertEquals(0x0000_1234, report.after().programCounter());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2005, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x8005, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(TrapOp.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TRAP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndVectorsTrapvWhenOverflowIsSet() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setOverflow(true);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.TRAPV, 0x0000_1234);
+        bus.writeWord(0x0000_1000, TRAPV);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2002, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0002, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(TrapvOp.EXECUTION_CYCLES_TAKEN, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TRAPV"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndFallsThroughForTrapvWhenOverflowIsClear() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = cpu.step(busWithOpword(0x0000_1000, TRAPV), new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertFalse(cpu.statusRegister().isSupervisorSet());
+        assertEquals(TrapvOp.EXECUTION_CYCLES_NOT_TAKEN, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TRAPV"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndVectorsLineATrap() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.LINE_A_TRAP, 0x0000_1234);
+        bus.writeWord(0x0000_1000, LINE_A_0123);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2015, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(LineATrapOp.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=LINE_A_TRAP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndVectorsLineFTrap() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.LINE_F_TRAP, 0x0000_1234);
+        bus.writeWord(0x0000_1000, LINE_F_0234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2015, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(LineFTrapOp.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=LINE_F_TRAP"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndRestoresStateForRte() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        bus.writeWord(0x0000_1000, RTE);
+        bus.writeWord(TEST_SUPERVISOR_STACK_POINTER, 0x0015);
+        bus.writeLong(TEST_SUPERVISOR_STACK_POINTER + 2, 0x0000_1234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x0015, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER + 6, cpu.registers().supervisorStackPointer());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().stackPointer());
+        assertEquals(RteOp.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RTE"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndRestoresConditionCodesForRtr() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        bus.writeWord(0x0000_1000, RTR);
+        bus.writeWord(TEST_SUPERVISOR_STACK_POINTER, 0x0015);
+        bus.writeLong(TEST_SUPERVISOR_STACK_POINTER + 2, 0x0000_1234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2715, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER + 6, cpu.registers().supervisorStackPointer());
+        assertEquals(RtrOp.EXECUTION_CYCLES, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RTR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFetchesDecodesDispatchesAndStopsCpuForStop() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        bus.writeWord(0x0000_1000, STOP);
+        bus.writeWord(0x0000_1002, 0x0015);
+        bus.writeWord(0x0000_1004, 0x4E71);
+
+        M68kCpu.StepReport first = cpu.step(bus, new DispatchTable(), logs::add);
+        M68kCpu.StepReport second = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(first.success());
+        assertEquals(0x0000_1004, cpu.registers().programCounter());
+        assertEquals(0x0015, cpu.statusRegister().rawValue());
+        assertTrue(cpu.isStopped());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().stackPointer());
+        assertEquals(StopOp.EXECUTION_CYCLES, first.cycles());
+        assertTrue(second.success());
+        assertEquals(0, second.cycles());
+        assertEquals(0x0000_1004, cpu.registers().programCounter());
+        assertEquals(2, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=STOP"));
+        assertTrue(logs.get(1).contains("[m68k-step] OK op=STOPPED"));
     }
 
     @Test
@@ -1460,26 +1683,31 @@ class M68kCpuStepTest {
     }
 
     @Test
-    void stepLogsAndRethrowsDivideByZeroForDivu() {
+    void stepVectorsDivideByZeroForDivu() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
         cpu.registers().setData(1, 0x0000_0000);
         cpu.registers().setData(2, 20);
         cpu.statusRegister().setRawValue(0x001F);
         List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.DIVIDE_BY_ZERO, 0x0000_1234);
+        bus.writeWord(0x0000_1000, DIVU_W_D1_D2);
 
-        DivideByZeroException thrown = assertThrows(
-            DivideByZeroException.class,
-            () -> cpu.step(busWithOpword(0x0000_1000, DIVU_W_D1_D2), new DispatchTable(), logs::add)
-        );
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
 
-        assertEquals("Integer divide by zero triggered exception vector 5", thrown.getMessage());
-        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
         assertEquals(20, cpu.registers().data(2));
-        assertEquals(0x001F, cpu.statusRegister().rawValue());
+        assertEquals(0x201F, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x001F, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=DIVU"));
-        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=DIVU"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 
     @Test
@@ -1828,21 +2056,27 @@ class M68kCpuStepTest {
     }
 
     @Test
-    void stepLogsAndRethrowsIllegalInstructions() {
+    void stepVectorsIllegalInstructions() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
         List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ILLEGAL_INSTRUCTION, 0x0000_1234);
+        bus.writeWord(0x0000_1000, 0x4E74);
 
-        IllegalInstructionException thrown = assertThrows(
-            IllegalInstructionException.class,
-            () -> cpu.step(busWithOpword(0x0000_1000, 0x4E74), new DispatchTable(), logs::add)
-        );
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
 
-        assertTrue(thrown.getMessage().contains("does not correspond to a valid instruction opcode"));
-        assertEquals(0x0000_1000, cpu.registers().programCounter());
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2000, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0000, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=0x4E74"));
-        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001000"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=0x4E74"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 
     @Test
@@ -1888,6 +2122,25 @@ class M68kCpuStepTest {
             bus.writeWord(baseAddress + (index * 2), words[index]);
         }
         return bus;
+    }
+
+    private static AddressSpace flatRamBus() {
+        AddressSpace bus = new AddressSpace();
+        bus.addRegion(new Ram(0x0000_0000, 0x4000));
+        return bus;
+    }
+
+    private static void configureSplitStacks(M68kCpu cpu) {
+        cpu.registers().setUserStackPointer(TEST_USER_STACK_POINTER);
+        cpu.registers().setSupervisorStackPointer(TEST_SUPERVISOR_STACK_POINTER);
+    }
+
+    private static void installVector(AddressSpace bus, ExceptionVector vector, int handlerPc) {
+        bus.writeLong(vector.vectorAddress(), handlerPc);
+    }
+
+    private static void installTrapVector(AddressSpace bus, int trapNumber, int handlerPc) {
+        bus.writeLong(ExceptionVector.trapVectorNumber(trapNumber) * 4, handlerPc);
     }
 
     private static void configureTstScenario(M68kCpu cpu) {

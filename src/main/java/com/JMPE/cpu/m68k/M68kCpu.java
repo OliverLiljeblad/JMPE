@@ -4,6 +4,7 @@ import com.JMPE.bus.Bus;
 import com.JMPE.bus.Rom;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 
@@ -19,6 +20,7 @@ public final class M68kCpu {
 
     private final Registers registers;
     private final StatusRegister statusRegister;
+    private boolean stopped;
 
     public M68kCpu() {
         this(new Registers(), new StatusRegister());
@@ -49,6 +51,18 @@ public final class M68kCpu {
         return statusRegister;
     }
 
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    public void stop() {
+        stopped = true;
+    }
+
+    public void clearStopped() {
+        stopped = false;
+    }
+
     /**
      * Applies 68000 reset bootstrap state from ROM vectors.
      * <p>
@@ -67,6 +81,7 @@ public final class M68kCpu {
         statusRegister.setInterruptMask(RESET_INTERRUPT_MASK);
         registers.setSupervisorStackPointer(rom.initialSupervisorStackPointer());
         registers.setProgramCounter(rom.initialProgramCounter());
+        stopped = false;
     }
 
     /**
@@ -103,6 +118,11 @@ public final class M68kCpu {
         Objects.requireNonNull(reporter, "reporter must not be null");
 
         StepSnapshot before = StepSnapshot.capture(registers, statusRegister);
+        if (stopped) {
+            StepReport report = StepReport.success("STOPPED", before, before, 0);
+            reporter.accept(report.toLogLine());
+            return report;
+        }
         int opword = bus.readWord(registers.programCounter());
         String instructionName = String.format("0x%04X", opword & 0xFFFF);
 
@@ -118,7 +138,24 @@ public final class M68kCpu {
             StepReport report = StepReport.success(instructionName, before, after, cycles);
             reporter.accept(report.toLogLine());
             return report;
-        } catch (IllegalInstructionException | RuntimeException exception) {
+        } catch (IllegalInstructionException exception) {
+            if (ExceptionDispatcher.dispatchIfSupported(this, bus, exception)) {
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.failure(instructionName, before, after, exception.getMessage());
+            reporter.accept(report.toLogLine());
+            throw exception;
+        } catch (RuntimeException exception) {
+            if (ExceptionDispatcher.dispatchIfSupported(this, bus, exception)) {
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
             StepReport report = StepReport.failure(instructionName, before, after, exception.getMessage());
             reporter.accept(report.toLogLine());

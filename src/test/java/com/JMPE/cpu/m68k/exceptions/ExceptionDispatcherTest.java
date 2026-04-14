@@ -1,0 +1,43 @@
+package com.JMPE.cpu.m68k.exceptions;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.JMPE.bus.AddressSpace;
+import com.JMPE.bus.Ram;
+import com.JMPE.cpu.m68k.M68kCpu;
+import org.junit.jupiter.api.Test;
+
+class ExceptionDispatcherTest {
+    @Test
+    void dispatchSimpleVectorPushesSimpleFrameOnSupervisorStackAndLoadsHandler() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        bus.writeLong(ExceptionVector.LINE_A_TRAP.vectorAddress(), 0x0000_1234);
+        cpu.registers().setUserStackPointer(0x0000_3000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.registers().setProgramCounter(0x0000_1002);
+        cpu.statusRegister().setRawValue(0x8005);
+
+        ExceptionDispatcher.dispatchSimpleVector(cpu, bus, ExceptionVector.LINE_A_TRAP);
+
+        assertAll(
+            () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
+            () -> assertEquals(0x0000_3000, cpu.registers().userStackPointer()),
+            () -> assertEquals(0x0000_1FFA, cpu.registers().supervisorStackPointer()),
+            () -> assertEquals(0x2005, cpu.statusRegister().rawValue()),
+            () -> assertFalse(cpu.statusRegister().isTraceSet()),
+            () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
+            () -> assertEquals(0x8005, bus.readWord(0x0000_1FFA)),
+            () -> assertEquals(0x0000_1002, bus.readLong(0x0000_1FFC))
+        );
+    }
+
+    private static AddressSpace flatRamBus() {
+        AddressSpace bus = new AddressSpace();
+        bus.addRegion(new Ram(0x0000_0000, 0x4000));
+        return bus;
+    }
+}

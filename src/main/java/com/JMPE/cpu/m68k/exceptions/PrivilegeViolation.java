@@ -11,11 +11,17 @@ package com.JMPE.cpu.m68k.exceptions;
  * </p>
  */
 public class PrivilegeViolation extends RuntimeException {
+    private static final int VECTOR = 8;
+
     public PrivilegeViolation() {
         this("Privileged instruction");
     }
 
     public PrivilegeViolation(String operation) {
         super(operation + " requires supervisor mode");
+    }
+
+    public int vector() {
+        return VECTOR;
     }
 }

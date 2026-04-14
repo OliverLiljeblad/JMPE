@@ -213,6 +213,66 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesTrapStopReturnAndLineTrapForms() throws IllegalInstructionException {
+        DecodedInstruction trap = decoder.decode(0x4E43, null, EXTENSION_PC);
+        DecodedInstruction stop = decoder.decode(0x4E72, busWithWords(EXTENSION_PC, 0x2700), EXTENSION_PC);
+        DecodedInstruction rte = decoder.decode(0x4E73, null, EXTENSION_PC);
+        DecodedInstruction trapv = decoder.decode(0x4E76, null, EXTENSION_PC);
+        DecodedInstruction rtr = decoder.decode(0x4E77, null, EXTENSION_PC);
+        DecodedInstruction lineA = decoder.decode(0xA123, null, EXTENSION_PC);
+        DecodedInstruction lineF = decoder.decode(0xF234, null, EXTENSION_PC);
+
+        assertEquals(Opcode.TRAP, trap.opcode());
+        assertEquals(Size.UNSIZED, trap.size());
+        assertEquals(EffectiveAddress.none(), trap.src());
+        assertEquals(EffectiveAddress.none(), trap.dst());
+        assertEquals(3, trap.extension());
+        assertEquals(EXTENSION_PC, trap.nextPc());
+
+        assertEquals(Opcode.STOP, stop.opcode());
+        assertEquals(Size.UNSIZED, stop.size());
+        assertEquals(EffectiveAddress.none(), stop.src());
+        assertEquals(EffectiveAddress.none(), stop.dst());
+        assertEquals(0x2700, stop.extension());
+        assertEquals(INSTRUCTION_PC + 4, stop.nextPc());
+
+        assertEquals(Opcode.RTE, rte.opcode());
+        assertEquals(Size.UNSIZED, rte.size());
+        assertEquals(EffectiveAddress.none(), rte.src());
+        assertEquals(EffectiveAddress.none(), rte.dst());
+        assertEquals(0, rte.extension());
+        assertEquals(EXTENSION_PC, rte.nextPc());
+
+        assertEquals(Opcode.TRAPV, trapv.opcode());
+        assertEquals(Size.UNSIZED, trapv.size());
+        assertEquals(EffectiveAddress.none(), trapv.src());
+        assertEquals(EffectiveAddress.none(), trapv.dst());
+        assertEquals(0, trapv.extension());
+        assertEquals(EXTENSION_PC, trapv.nextPc());
+
+        assertEquals(Opcode.RTR, rtr.opcode());
+        assertEquals(Size.UNSIZED, rtr.size());
+        assertEquals(EffectiveAddress.none(), rtr.src());
+        assertEquals(EffectiveAddress.none(), rtr.dst());
+        assertEquals(0, rtr.extension());
+        assertEquals(EXTENSION_PC, rtr.nextPc());
+
+        assertEquals(Opcode.LINE_A_TRAP, lineA.opcode());
+        assertEquals(Size.UNSIZED, lineA.size());
+        assertEquals(EffectiveAddress.none(), lineA.src());
+        assertEquals(EffectiveAddress.none(), lineA.dst());
+        assertEquals(0xA123, lineA.extension());
+        assertEquals(EXTENSION_PC, lineA.nextPc());
+
+        assertEquals(Opcode.LINE_F_TRAP, lineF.opcode());
+        assertEquals(Size.UNSIZED, lineF.size());
+        assertEquals(EffectiveAddress.none(), lineF.src());
+        assertEquals(EffectiveAddress.none(), lineF.dst());
+        assertEquals(0xF234, lineF.extension());
+        assertEquals(EXTENSION_PC, lineF.nextPc());
+    }
+
+    @Test
     void rejectsNbcdToAddressRegisterDirect() {
         assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4808, null, EXTENSION_PC));
     }

@@ -2,15 +2,15 @@ package com.JMPE.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.JMPE.bus.Ram;
 import com.JMPE.cpu.m68k.Decoder;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.ExceptionVector;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
-import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.machine.MacPlusMachine;
 import org.junit.jupiter.api.Test;
@@ -386,24 +386,30 @@ class SmallProgramTest {
     }
 
     @Test
-    void rejectsAndiToSrInUserModeThroughMachineLayer() {
+    void vectorsPrivilegeViolationForAndiToSrInUserModeThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.PRIVILEGE_VIOLATION.vectorAddress(), 0x0000_0400);
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(
                 romBytesWithInstructionWords(ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE),
-                ROM_BASE
+                ROM_BASE,
+                lowMemory
         );
         configureAndiToSrUserModeScenario(machine.cpu());
         List<String> logs = new ArrayList<>();
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> machine.step(logs::add)
-        );
+        M68kCpu.StepReport report = machine.step(logs::add);
 
-        assertEquals("ANDI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
-        assertEquals(ANDI_TO_SR_USER_MODE_SR, machine.cpu().statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x271F, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 6, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(ANDI_TO_SR_USER_MODE_SR, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=ANDI_TO_SR"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI_TO_SR"));
     }
 
     @Test
@@ -603,24 +609,30 @@ class SmallProgramTest {
     }
 
     @Test
-    void rejectsEoriToSrInUserModeThroughMachineLayer() {
+    void vectorsPrivilegeViolationForEoriToSrInUserModeThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.PRIVILEGE_VIOLATION.vectorAddress(), 0x0000_0400);
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(
                 romBytesWithInstructionWords(EORI_TO_SR, EORI_TO_SR_IMMEDIATE),
-                ROM_BASE
+                ROM_BASE,
+                lowMemory
         );
         configureEoriToSrUserModeScenario(machine.cpu());
         List<String> logs = new ArrayList<>();
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> machine.step(logs::add)
-        );
+        M68kCpu.StepReport report = machine.step(logs::add);
 
-        assertEquals("EORI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
-        assertEquals(EORI_TO_SR_USER_MODE_SR, machine.cpu().statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x271F, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 6, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(EORI_TO_SR_USER_MODE_SR, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=EORI_TO_SR"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=EORI_TO_SR"));
     }
 
     @Test

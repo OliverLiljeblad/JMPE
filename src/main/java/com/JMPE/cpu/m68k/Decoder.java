@@ -1386,13 +1386,12 @@ public final class Decoder {
      * <p>No extension words are consumed — the trap vector is in the opword itself.
      */
     private DecodedInstruction decodeLineA(int op, int extPc) {
-        int trapVector = op & 0x0FFF;
         return new DecodedInstruction(
             Opcode.LINE_A_TRAP,
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            trapVector,
+            op & 0xFFFF,
             extPc   // no extension words consumed
         );
     }
@@ -1761,7 +1760,7 @@ public final class Decoder {
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            0,
+            op & 0xFFFF,
             extPc
         );
     }

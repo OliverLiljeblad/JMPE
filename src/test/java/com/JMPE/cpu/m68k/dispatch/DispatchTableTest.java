@@ -138,6 +138,8 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.JMP, JmpOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.JSR, JsrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LEA, LeaOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.LINE_A_TRAP, LineATrapOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.LINE_F_TRAP, LineFTrapOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LINK, LinkOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LSL, LslOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.LSR, LsrOp.class);
@@ -164,11 +166,14 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.RESET, ResetOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ROL, RolOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ROR, RorOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.RTE, RteOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.RTR, RtrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ROXL, RoxlOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.ROXR, RoxrOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.RTS, RtsOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.Scc, SccOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SBCD, SbcdOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.STOP, StopOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUB, SubOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBA, SubaOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SUBI, SubiOp.class);
@@ -176,6 +181,8 @@ class DispatchTableTest {
         assertBuiltInHandler(dispatchTable, Opcode.SUBX, SubxOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.SWAP, SwapOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.TAS, TasOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.TRAP, TrapOp.class);
+        assertBuiltInHandler(dispatchTable, Opcode.TRAPV, TrapvOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.TST, TstOp.class);
         assertBuiltInHandler(dispatchTable, Opcode.UNLK, UnlkOp.class);
     }
