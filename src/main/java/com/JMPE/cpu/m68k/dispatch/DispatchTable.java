@@ -92,6 +92,8 @@ public final class DispatchTable {
     private void registerBuiltIns() {
         register(Opcode.ADD, new AddOp());
         register(Opcode.ADDI, new AddiOp());
+        register(Opcode.ADDA, new AddaOp());
+        register(Opcode.ADDX, new AddxOp());
         register(Opcode.ADDQ, new AddqOp());
         register(Opcode.AND, new AndOp());
         register(Opcode.ANDI, new AndiOp());
@@ -109,7 +111,9 @@ public final class DispatchTable {
         register(Opcode.CHK, new ChkOp());
         register(Opcode.CLR, new ClrOp());
         register(Opcode.CMP, new CmpOp());
+        register(Opcode.CMPA, new CmpaOp());
         register(Opcode.CMPI, new CmpiOp());
+        register(Opcode.CMPM, new CmpmOp());
         register(Opcode.DBcc, new DbccOp());
         register(Opcode.EOR, new EorOp());
         register(Opcode.EORI, new EoriOp());
@@ -131,6 +135,7 @@ public final class DispatchTable {
         register(Opcode.MOVEM_REG_TO_MEM, new MovemRegToMemOp());
         register(Opcode.MOVEQ, new MoveQOp());
         register(Opcode.NEG, new NegOp());
+        register(Opcode.NEGX, new NegxOp());
         register(Opcode.NOP, new NopOp());
         register(Opcode.NOT, new NotOp());
         register(Opcode.OR, new OrOp());
@@ -148,6 +153,7 @@ public final class DispatchTable {
         register(Opcode.SUBA, new SubaOp());
         register(Opcode.SUBI, new SubiOp());
         register(Opcode.SUBQ, new SubqOp());
+        register(Opcode.SUBX, new SubxOp());
         register(Opcode.SWAP, new SwapOp());
         register(Opcode.TST, new TstOp());
     }

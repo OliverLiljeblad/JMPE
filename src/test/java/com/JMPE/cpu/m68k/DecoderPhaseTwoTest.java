@@ -124,9 +124,16 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
-    void decodesNegAndSwapDataRegisterForms() throws IllegalInstructionException {
+    void decodesNegxNegAndSwapDataRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction negx = decoder.decode(0x4000, null, EXTENSION_PC);
         DecodedInstruction neg = decoder.decode(0x4400, null, EXTENSION_PC);
         DecodedInstruction swap = decoder.decode(0x4841, null, EXTENSION_PC);
+
+        assertEquals(Opcode.NEGX, negx.opcode());
+        assertEquals(Size.BYTE, negx.size());
+        assertEquals(EffectiveAddress.none(), negx.src());
+        assertEquals(EffectiveAddress.dataReg(0), negx.dst());
+        assertEquals(EXTENSION_PC, negx.nextPc());
 
         assertEquals(Opcode.NEG, neg.opcode());
         assertEquals(Size.BYTE, neg.size());
