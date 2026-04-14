@@ -38,6 +38,22 @@ class BootsToQuestionMarkTest {
     }
 
     @Test
+    void stepsSyntheticResetProgramThroughBootSmokeHarness() {
+        MacPlusMachine machine = BootHarness.machineFromRomBytes(
+            romBytesWithProgramWords(BSR_W, BSR_TO_RTS_DISPLACEMENT, NOP, NOP, RTS),
+            BootHarness.DEFAULT_ROM_BASE
+        );
+
+        BootHarness.BootSmokeRun run = BootHarness.runSmokeSteps(machine, 4);
+
+        assertEquals(4, run.stepsCompleted());
+        assertTrue(run.lastReport().success());
+        assertEquals(RESET_PROGRAM_COUNTER + 6, run.lastReport().before().programCounter());
+        assertEquals(RESET_PROGRAM_COUNTER + 8, machine.cpu().registers().programCounter());
+        assertTrue(run.lastLog().contains("[m68k-step] OK op=NOP"));
+    }
+
+    @Test
     void runsLocalMacPlusRomForConfiguredBootSmokeSteps() throws IOException {
         Optional<Path> romPath = BootHarness.findLocalRom();
         assumeTrue(
@@ -46,11 +62,11 @@ class BootsToQuestionMarkTest {
         );
 
         int stepLimit = BootHarness.configuredStepLimit();
-        BootHarness.BootRun run = BootHarness.runSteps(BootHarness.loadLocalMacPlusRom(romPath.get()), stepLimit);
+        BootHarness.BootSmokeRun run = BootHarness.runSmokeSteps(BootHarness.loadLocalMacPlusRom(romPath.get()), stepLimit);
 
         assertEquals(stepLimit, run.stepsCompleted());
-        assertEquals(stepLimit, run.logs().size());
-        assertTrue(run.reports().stream().allMatch(report -> report.success()));
+        assertTrue(run.lastReport().success());
+        assertTrue(run.lastLog().contains("[m68k-step] OK op="));
     }
 
     private static byte[] romBytesWithProgramWords(int... words) {

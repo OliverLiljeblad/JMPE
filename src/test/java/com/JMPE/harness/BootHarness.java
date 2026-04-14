@@ -97,12 +97,7 @@ public final class BootHarness {
     }
 
     public static BootRun runSteps(MacPlusMachine machine, int stepCount) {
-        if (machine == null) {
-            throw new IllegalArgumentException("machine must not be null");
-        }
-        if (stepCount <= 0) {
-            throw new IllegalArgumentException("stepCount must be positive");
-        }
+        validateRunInputs(machine, stepCount);
 
         List<M68kCpu.StepReport> reports = new ArrayList<>(stepCount);
         List<String> logs = new ArrayList<>(stepCount);
@@ -123,9 +118,47 @@ public final class BootHarness {
         return new BootRun(List.copyOf(reports), List.copyOf(logs));
     }
 
+    public static BootSmokeRun runSmokeSteps(MacPlusMachine machine, int stepCount) {
+        validateRunInputs(machine, stepCount);
+
+        int stepsCompleted = 0;
+        M68kCpu.StepReport lastReport = null;
+        String lastLog = null;
+
+        for (int step = 0; step < stepCount; step++) {
+            String[] stepLog = new String[1];
+            try {
+                lastReport = machine.step(message -> stepLog[0] = message);
+                lastLog = stepLog[0];
+                stepsCompleted++;
+            } catch (IllegalInstructionException | RuntimeException exception) {
+                throw new AssertionError(
+                    "Boot step " + step
+                        + " failed at pc=" + String.format("0x%08X", machine.cpu().registers().programCounter())
+                        + " after " + stepsCompleted + " completed steps. Last log: " + lastLog(stepLog[0] != null ? stepLog[0] : lastLog),
+                    exception
+                );
+            }
+        }
+
+        return new BootSmokeRun(stepsCompleted, lastReport, lastLog);
+    }
+
     public record BootRun(List<M68kCpu.StepReport> reports, List<String> logs) {
         public int stepsCompleted() {
             return reports.size();
+        }
+    }
+
+    public record BootSmokeRun(int stepsCompleted, M68kCpu.StepReport lastReport, String lastLog) {
+    }
+
+    private static void validateRunInputs(MacPlusMachine machine, int stepCount) {
+        if (machine == null) {
+            throw new IllegalArgumentException("machine must not be null");
+        }
+        if (stepCount <= 0) {
+            throw new IllegalArgumentException("stepCount must be positive");
         }
     }
 
@@ -146,5 +179,9 @@ public final class BootHarness {
             return "<none>";
         }
         return logs.get(logs.size() - 1);
+    }
+
+    private static String lastLog(String log) {
+        return log == null ? "<none>" : log;
     }
 }
