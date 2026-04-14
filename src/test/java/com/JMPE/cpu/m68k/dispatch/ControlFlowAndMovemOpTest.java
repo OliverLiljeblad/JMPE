@@ -14,6 +14,8 @@ import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.ChkException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.control.Link;
+import com.JMPE.cpu.m68k.instructions.control.Unlk;
 import org.junit.jupiter.api.Test;
 
 class ControlFlowAndMovemOpTest {
@@ -28,6 +30,42 @@ class ControlFlowAndMovemOpTest {
         assertAll(
             () -> assertEquals(4, cycles),
             () -> assertEquals(0x1020, cpu.registers().address(0))
+        );
+    }
+
+    @Test
+    void linkOpPushesOldFrameRegisterAndAllocatesLocalStackSpace() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x1100);
+        cpu.registers().setAddress(6, 0x2222_0000);
+
+        int cycles = new LinkOp().execute(cpu, bus, decoded(Opcode.LINK, Size.UNSIZED,
+            EffectiveAddress.addrReg(6), EffectiveAddress.none(), -8));
+
+        assertAll(
+            () -> assertEquals(Link.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x10F4, cpu.registers().stackPointer()),
+            () -> assertEquals(0x10FC, cpu.registers().address(6)),
+            () -> assertEquals(0x2222_0000, bus.readLong(0x10FC))
+        );
+    }
+
+    @Test
+    void unlkOpRestoresFrameRegisterAndReleasesStackFrame() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x10F4);
+        cpu.registers().setAddress(6, 0x10FC);
+        bus.writeLong(0x10FC, 0x2222_0000);
+
+        int cycles = new UnlkOp().execute(cpu, bus, decoded(Opcode.UNLK, Size.UNSIZED,
+            EffectiveAddress.addrReg(6), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(Unlk.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x1100, cpu.registers().stackPointer()),
+            () -> assertEquals(0x2222_0000, cpu.registers().address(6))
         );
     }
 

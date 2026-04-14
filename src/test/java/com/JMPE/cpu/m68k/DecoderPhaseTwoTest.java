@@ -181,6 +181,38 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesLinkAndUnlkAddressRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction link = decoder.decode(0x4E56, busWithWords(EXTENSION_PC, 0xFFF8), EXTENSION_PC);
+        DecodedInstruction unlk = decoder.decode(0x4E5E, null, EXTENSION_PC);
+
+        assertEquals(Opcode.LINK, link.opcode());
+        assertEquals(Size.UNSIZED, link.size());
+        assertEquals(EffectiveAddress.addrReg(6), link.src());
+        assertEquals(EffectiveAddress.none(), link.dst());
+        assertEquals(-8, link.extension());
+        assertEquals(INSTRUCTION_PC + 4, link.nextPc());
+
+        assertEquals(Opcode.UNLK, unlk.opcode());
+        assertEquals(Size.UNSIZED, unlk.size());
+        assertEquals(EffectiveAddress.addrReg(6), unlk.src());
+        assertEquals(EffectiveAddress.none(), unlk.dst());
+        assertEquals(0, unlk.extension());
+        assertEquals(EXTENSION_PC, unlk.nextPc());
+    }
+
+    @Test
+    void decodesResetSingleOpwordForm() throws IllegalInstructionException {
+        DecodedInstruction reset = decoder.decode(0x4E70, null, EXTENSION_PC);
+
+        assertEquals(Opcode.RESET, reset.opcode());
+        assertEquals(Size.UNSIZED, reset.size());
+        assertEquals(EffectiveAddress.none(), reset.src());
+        assertEquals(EffectiveAddress.none(), reset.dst());
+        assertEquals(0, reset.extension());
+        assertEquals(EXTENSION_PC, reset.nextPc());
+    }
+
+    @Test
     void rejectsNbcdToAddressRegisterDirect() {
         assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4808, null, EXTENSION_PC));
     }

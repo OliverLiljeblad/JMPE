@@ -127,6 +127,7 @@ public final class DispatchTable {
         register(Opcode.JMP, new JmpOp());
         register(Opcode.JSR, new JsrOp());
         register(Opcode.LEA, new LeaOp());
+        register(Opcode.LINK, new LinkOp());
         register(Opcode.LSL, new LslOp());
         register(Opcode.LSR, new LsrOp());
         register(Opcode.MOVE, new MoveOp());
@@ -152,6 +153,7 @@ public final class DispatchTable {
         register(Opcode.ORI_TO_CCR, new OriToCcrOp());
         register(Opcode.ORI_TO_SR, new OriToSrOp());
         register(Opcode.PEA, new PeaOp());
+        register(Opcode.RESET, new ResetOp());
         register(Opcode.ROL, new RolOp());
         register(Opcode.ROR, new RorOp());
         register(Opcode.ROXL, new RoxlOp());
@@ -167,5 +169,6 @@ public final class DispatchTable {
         register(Opcode.SWAP, new SwapOp());
         register(Opcode.TAS, new TasOp());
         register(Opcode.TST, new TstOp());
+        register(Opcode.UNLK, new UnlkOp());
     }
 }
