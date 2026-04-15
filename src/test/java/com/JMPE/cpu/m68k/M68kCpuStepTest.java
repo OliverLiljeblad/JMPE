@@ -1580,6 +1580,78 @@ class M68kCpuStepTest {
     }
 
     @Test
+    void stepTakesPendingInterruptBeforeFetchingNextInstruction() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installInterruptAutovector(bus, 3, 0x0000_1234);
+        bus.writeWord(0x0000_1000, 0x4E71);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), () -> 3, logs::add);
+
+        assertTrue(report.success());
+        assertEquals(44, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2315, cpu.statusRegister().rawValue());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().userStackPointer());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=INTERRUPT_LEVEL_3"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepIgnoresPendingInterruptAtCurrentMaskLevel() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.statusRegister().setRawValue(0x0315);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        bus.writeWord(0x0000_1000, 0x4E71);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), () -> 3, logs::add);
+
+        assertTrue(report.success());
+        assertEquals(4, report.cycles());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertEquals(0x0315, cpu.statusRegister().rawValue());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=NOP"));
+    }
+
+    @Test
+    void stepWakesStoppedCpuForPendingInterruptAboveMask() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1004);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        cpu.stop();
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installInterruptAutovector(bus, 5, 0x0000_1234);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), () -> 5, logs::add);
+
+        assertTrue(report.success());
+        assertFalse(cpu.isStopped());
+        assertEquals(44, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2515, cpu.statusRegister().rawValue());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().userStackPointer());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
+        assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1004, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=INTERRUPT_LEVEL_5"));
+        assertTrue(logs.get(0).contains("pc=0x00001004->0x00001234"));
+    }
+
+    @Test
     void stepVectorsAddressErrorForOddOpcodeFetch() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1001);
@@ -2225,7 +2297,9 @@ class M68kCpuStepTest {
         }));
         assertThrows(NullPointerException.class, () -> cpu.step(bus, null, ignored -> {
         }));
-        assertThrows(NullPointerException.class, () -> cpu.step(bus, dispatchTable, null));
+        assertThrows(NullPointerException.class, () -> cpu.step(bus, dispatchTable, (java.util.function.Consumer<String>) null));
+        assertThrows(NullPointerException.class, () -> cpu.step(bus, dispatchTable, null, ignored -> {
+        }));
     }
 
     private static AddressSpace busWithOpword(int baseAddress, int opword) {
@@ -2255,6 +2329,10 @@ class M68kCpuStepTest {
 
     private static void installVector(AddressSpace bus, ExceptionVector vector, int handlerPc) {
         bus.writeLong(vector.vectorAddress(), handlerPc);
+    }
+
+    private static void installInterruptAutovector(AddressSpace bus, int interruptLevel, int handlerPc) {
+        bus.writeLong(ExceptionVector.interruptAutovectorNumber(interruptLevel) * 4, handlerPc);
     }
 
     private static void installTrapVector(AddressSpace bus, int trapNumber, int handlerPc) {

@@ -85,6 +85,10 @@ public final class Via6522 {
         }
     }
 
+    public boolean isIrqAsserted() {
+        return (composeInterruptFlagRegister() & IRQ_SUMMARY_FLAG) != 0;
+    }
+
     private int readInterruptFlagRegister() {
         int value = composeInterruptFlagRegister();
         if ((interruptFlags & CA1_INTERRUPT_FLAG) == 0) {

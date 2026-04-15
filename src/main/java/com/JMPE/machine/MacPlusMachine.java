@@ -41,6 +41,7 @@ public final class MacPlusMachine {
     private final M68kCpu cpu;
     private final AddressSpace bus;
     private final DispatchTable dispatchTable;
+    private final Interrupts interrupts;
 
     public MacPlusMachine(Rom rom) {
         this(rom, new M68kCpu(), false);
@@ -93,6 +94,7 @@ public final class MacPlusMachine {
                 overlayRegion.setOverlayEnabled(((portA >>> VIA_OVERLAY_BIT) & 1) != 0);
             }
         });
+        this.interrupts = () -> via.isIrqAsserted() ? 1 : 0;
 
         if (overlayRegion != null) {
             overlayRegion.setOverlayEnabled(overlayEnabledAtReset);
@@ -140,15 +142,15 @@ public final class MacPlusMachine {
     }
 
     public M68kCpu.StepReport step() throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable);
+        return cpu.step(bus, dispatchTable, interrupts);
     }
 
     public M68kCpu.StepReport step(Consumer<String> reporter) throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable, reporter);
+        return cpu.step(bus, dispatchTable, interrupts, reporter);
     }
 
     public M68kCpu.StepReport stepWithConsoleReport() throws IllegalInstructionException {
-        return cpu.stepWithConsoleReport(bus, dispatchTable);
+        return cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
     }
 
     private static MemoryRegion mainRomRegion(Rom rom) {

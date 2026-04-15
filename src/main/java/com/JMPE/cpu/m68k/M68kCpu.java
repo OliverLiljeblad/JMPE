@@ -8,6 +8,7 @@ import com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher;
 import com.JMPE.cpu.m68k.exceptions.Group0Fault;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
+import com.JMPE.machine.Interrupts;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -17,6 +18,7 @@ import java.util.function.Consumer;
  */
 public final class M68kCpu {
     private static final Decoder DECODER = new Decoder();
+    private static final int INTERRUPT_AUTOVECTOR_CYCLES = 44;
     private static final int RESET_INTERRUPT_MASK = 7;
 
     private final Registers registers;
@@ -119,12 +121,27 @@ public final class M68kCpu {
      */
     public StepReport step(Bus bus,
                            DispatchTable dispatchTable,
+                           Interrupts interrupts,
                            Consumer<String> reporter) throws IllegalInstructionException {
         Objects.requireNonNull(bus, "bus must not be null");
         Objects.requireNonNull(dispatchTable, "dispatchTable must not be null");
+        Objects.requireNonNull(interrupts, "interrupts must not be null");
         Objects.requireNonNull(reporter, "reporter must not be null");
 
         StepSnapshot before = StepSnapshot.capture(registers, statusRegister);
+        int pendingInterruptLevel = pendingInterruptLevel(interrupts);
+        if (pendingInterruptLevel > statusRegister.interruptMask()) {
+            ExceptionDispatcher.dispatchInterruptAutovector(this, bus, pendingInterruptLevel);
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.success(
+                "INTERRUPT_LEVEL_" + pendingInterruptLevel,
+                before,
+                after,
+                INTERRUPT_AUTOVECTOR_CYCLES
+            );
+            reporter.accept(report.toLogLine());
+            return report;
+        }
         if (stopped) {
             StepReport report = StepReport.success("STOPPED", before, before, 0);
             reporter.accept(report.toLogLine());
@@ -196,14 +213,33 @@ public final class M68kCpu {
         }
     }
 
+    public StepReport step(Bus bus,
+                           DispatchTable dispatchTable,
+                           Consumer<String> reporter) throws IllegalInstructionException {
+        return step(bus, dispatchTable, Interrupts.none(), reporter);
+    }
+
     public StepReport step(Bus bus, DispatchTable dispatchTable) throws IllegalInstructionException {
-        return step(bus, dispatchTable, ignored -> {
+        return step(bus, dispatchTable, Interrupts.none(), ignored -> {
+        });
+    }
+
+    public StepReport step(Bus bus,
+                           DispatchTable dispatchTable,
+                           Interrupts interrupts) throws IllegalInstructionException {
+        return step(bus, dispatchTable, interrupts, ignored -> {
         });
     }
 
     public StepReport stepWithConsoleReport(Bus bus,
                                             DispatchTable dispatchTable) throws IllegalInstructionException {
-        return step(bus, dispatchTable, System.out::println);
+        return step(bus, dispatchTable, Interrupts.none(), System.out::println);
+    }
+
+    public StepReport stepWithConsoleReport(Bus bus,
+                                            DispatchTable dispatchTable,
+                                            Interrupts interrupts) throws IllegalInstructionException {
+        return step(bus, dispatchTable, interrupts, System.out::println);
     }
 
     /**
@@ -250,6 +286,14 @@ public final class M68kCpu {
 
     private static boolean isSupervisorSet(int rawStatusRegister) {
         return (rawStatusRegister & (1 << 13)) != 0;
+    }
+
+    private static int pendingInterruptLevel(Interrupts interrupts) {
+        int pendingInterruptLevel = interrupts.highestPendingLevel();
+        if (pendingInterruptLevel < 0 || pendingInterruptLevel > RESET_INTERRUPT_MASK) {
+            throw new IllegalArgumentException("interrupt level must be in range 0..7");
+        }
+        return pendingInterruptLevel;
     }
 
     @FunctionalInterface

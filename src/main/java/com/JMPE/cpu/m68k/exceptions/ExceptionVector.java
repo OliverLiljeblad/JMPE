@@ -36,6 +36,13 @@ public enum ExceptionVector {
         return frameKind == ExceptionFrameKind.SIX_BYTE_SIMPLE;
     }
 
+    public static int interruptAutovectorNumber(int interruptLevel) {
+        if (interruptLevel < 1 || interruptLevel > 7) {
+            throw new IllegalArgumentException("interrupt level must be in range 1..7");
+        }
+        return 24 + interruptLevel;
+    }
+
     public static int trapVectorNumber(int trapNumber) {
         if (trapNumber < 0 || trapNumber > 0xF) {
             throw new IllegalArgumentException("TRAP immediate must be in range 0..15");

@@ -85,6 +85,32 @@ class ExceptionDispatcherTest {
     }
 
     @Test
+    void dispatchInterruptAutovectorPushesSimpleFrameRaisesMaskAndClearsStoppedState() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        bus.writeLong(ExceptionVector.interruptAutovectorNumber(3) * 4, 0x0000_1234);
+        cpu.registers().setUserStackPointer(0x0000_3000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.statusRegister().setRawValue(0x0015);
+        cpu.stop();
+
+        ExceptionDispatcher.dispatchInterruptAutovector(cpu, bus, 3);
+
+        assertAll(
+            () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
+            () -> assertEquals(0x0000_3000, cpu.registers().userStackPointer()),
+            () -> assertEquals(0x0000_1FFA, cpu.registers().supervisorStackPointer()),
+            () -> assertEquals(0x2315, cpu.statusRegister().rawValue()),
+            () -> assertFalse(cpu.statusRegister().isTraceSet()),
+            () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
+            () -> assertFalse(cpu.isStopped()),
+            () -> assertEquals(0x0015, bus.readWord(0x0000_1FFA)),
+            () -> assertEquals(0x0000_1000, bus.readLong(0x0000_1FFC))
+        );
+    }
+
+    @Test
     void dispatchIfSupportedLeavesGroupZeroFaultsUnhandledForNow() {
         AddressSpace bus = flatRamBus();
         M68kCpu cpu = new M68kCpu();

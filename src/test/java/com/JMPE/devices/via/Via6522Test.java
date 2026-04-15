@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Via6522Test {
     @Test
@@ -46,7 +48,18 @@ class Via6522Test {
 
         assertAll(
             () -> assertEquals(0x82, ifr),
-            () -> assertEquals(0x82, ier)
+            () -> assertEquals(0x82, ier),
+            () -> assertTrue(via.isIrqAsserted())
         );
+    }
+
+    @Test
+    void irqLineDropsWhenEnabledInterruptFlagsAreCleared() {
+        Via6522 via = new Via6522(ignored -> { });
+        via.writeRegister(14, 0x82);
+
+        via.writeRegister(13, 0x02);
+
+        assertFalse(via.isIrqAsserted());
     }
 }

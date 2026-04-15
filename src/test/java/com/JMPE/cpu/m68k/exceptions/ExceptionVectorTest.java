@@ -27,6 +27,14 @@ class ExceptionVectorTest {
     }
 
     @Test
+    void encodesInterruptAutovectorNumbers() {
+        assertEquals(25, ExceptionVector.interruptAutovectorNumber(1));
+        assertEquals(31, ExceptionVector.interruptAutovectorNumber(7));
+        assertThrows(IllegalArgumentException.class, () -> ExceptionVector.interruptAutovectorNumber(0));
+        assertThrows(IllegalArgumentException.class, () -> ExceptionVector.interruptAutovectorNumber(8));
+    }
+
+    @Test
     void encodesTrapImmediateVectorNumbers() {
         assertEquals(32, ExceptionVector.trapVectorNumber(0));
         assertEquals(47, ExceptionVector.trapVectorNumber(15));

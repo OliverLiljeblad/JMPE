@@ -96,6 +96,33 @@ public final class ExceptionDispatcher {
         cpu.registers().setProgramCounter(bus.readLong(fault.exceptionVector().vectorAddress()));
     }
 
+    public static void dispatchInterruptAutovector(M68kCpu cpu, Bus bus, int interruptLevel) {
+        Objects.requireNonNull(cpu, "cpu must not be null");
+        Objects.requireNonNull(bus, "bus must not be null");
+        if (interruptLevel < 1 || interruptLevel > 7) {
+            throw new IllegalArgumentException("interrupt level must be in range 1..7");
+        }
+
+        int savedProgramCounter = cpu.registers().programCounter();
+        int savedStatusRegister = cpu.statusRegister().rawValue();
+
+        cpu.clearStopped();
+        cpu.statusRegister().setSupervisor(true);
+        cpu.statusRegister().setTrace(false);
+        cpu.statusRegister().setInterruptMask(interruptLevel);
+
+        int stackPointer = cpu.registers().stackPointer();
+        stackPointer -= Integer.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeLong(stackPointer, savedProgramCounter);
+
+        stackPointer -= Short.BYTES;
+        cpu.registers().setStackPointer(stackPointer);
+        bus.writeWord(stackPointer, savedStatusRegister);
+
+        cpu.registers().setProgramCounter(bus.readLong(ExceptionVector.interruptAutovectorNumber(interruptLevel) * 4));
+    }
+
     private static void dispatchSimpleFrame(M68kCpu cpu, Bus bus, int vectorNumber) {
         int savedProgramCounter = cpu.registers().programCounter();
         int savedStatusRegister = cpu.statusRegister().rawValue();
