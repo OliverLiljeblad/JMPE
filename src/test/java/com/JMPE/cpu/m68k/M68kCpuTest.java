@@ -32,4 +32,20 @@ class M68kCpuTest {
         M68kCpu cpu = new M68kCpu();
         assertThrows(IllegalArgumentException.class, () -> cpu.resetFromRom(null));
     }
+
+    @Test
+    void supervisorBitChangesSwapActiveStackPointer() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setUserStackPointer(0x0000_1000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+
+        cpu.statusRegister().setSupervisor(true);
+        assertEquals(0x0000_2000, cpu.registers().stackPointer());
+
+        cpu.registers().setStackPointer(0x0000_3000);
+        cpu.statusRegister().setSupervisor(false);
+
+        assertEquals(0x0000_1000, cpu.registers().stackPointer());
+        assertEquals(0x0000_3000, cpu.registers().supervisorStackPointer());
+    }
 }

@@ -12,6 +12,8 @@ import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.data.Exg;
+import com.JMPE.cpu.m68k.instructions.data.Swap;
 import org.junit.jupiter.api.Test;
 
 class MoveFamilyOpTest {
@@ -64,6 +66,46 @@ class MoveFamilyOpTest {
             () -> assertEquals(-128, cpu.registers().data(3)),
             () -> assertTrue(cpu.statusRegister().isNegativeSet()),
             () -> assertFalse(cpu.statusRegister().isZeroSet())
+        );
+    }
+
+    @Test
+    void swapOpExchangesRegisterHalvesAndUpdatesMoveFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(1, 0x1234_5678);
+        cpu.statusRegister().setExtend(true);
+        cpu.statusRegister().setCarry(true);
+        cpu.statusRegister().setOverflow(true);
+
+        int cycles = new SwapOp().execute(cpu, null, decoded(Opcode.SWAP, Size.LONG,
+            EffectiveAddress.none(), EffectiveAddress.dataReg(1)));
+
+        assertAll(
+            () -> assertEquals(Swap.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x5678_1234, cpu.registers().data(1)),
+            () -> assertFalse(cpu.statusRegister().isNegativeSet()),
+            () -> assertFalse(cpu.statusRegister().isZeroSet()),
+            () -> assertFalse(cpu.statusRegister().isOverflowSet()),
+            () -> assertFalse(cpu.statusRegister().isCarrySet()),
+            () -> assertTrue(cpu.statusRegister().isExtendSet())
+        );
+    }
+
+    @Test
+    void exgOpSwapsDataAndAddressRegistersWithoutChangingFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(1, 0x1111_2222);
+        cpu.registers().setAddress(5, 0x3333_4444);
+        cpu.statusRegister().setRawValue(0xA71F);
+
+        int cycles = new ExgOp().execute(cpu, null, decoded(Opcode.EXG, Size.LONG,
+            EffectiveAddress.dataReg(1), EffectiveAddress.addrReg(5)));
+
+        assertAll(
+            () -> assertEquals(Exg.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x3333_4444, cpu.registers().data(1)),
+            () -> assertEquals(0x1111_2222, cpu.registers().address(5)),
+            () -> assertEquals(0xA71F, cpu.statusRegister().rawValue())
         );
     }
 

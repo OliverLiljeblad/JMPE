@@ -11,6 +11,9 @@ import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Addi;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Neg;
+import com.JMPE.cpu.m68k.instructions.arithmetic.Subi;
 import org.junit.jupiter.api.Test;
 
 class AluAndShiftOpsTest {
@@ -40,6 +43,58 @@ class AluAndShiftOpsTest {
 
         assertAll(
             () -> assertEquals(4, cycles),
+            () -> assertEquals(0x0000_00FF, cpu.registers().data(0)),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertTrue(cpu.statusRegister().isCarrySet()),
+            () -> assertTrue(cpu.statusRegister().isExtendSet())
+        );
+    }
+
+    @Test
+    void addiOpWritesResultAndArithmeticFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x007F);
+
+        int cycles = new AddiOp().execute(cpu, null, decoded(Opcode.ADDI, Size.BYTE,
+            EffectiveAddress.immediate(1), EffectiveAddress.dataReg(0)));
+
+        assertAll(
+            () -> assertEquals(Addi.EXECUTION_CYCLES_DN, cycles),
+            () -> assertEquals(0x0000_0080, cpu.registers().data(0)),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertTrue(cpu.statusRegister().isOverflowSet()),
+            () -> assertFalse(cpu.statusRegister().isCarrySet()),
+            () -> assertFalse(cpu.statusRegister().isExtendSet())
+        );
+    }
+
+    @Test
+    void subiOpWritesResultAndBorrowFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x0000);
+
+        int cycles = new SubiOp().execute(cpu, null, decoded(Opcode.SUBI, Size.BYTE,
+            EffectiveAddress.immediate(1), EffectiveAddress.dataReg(0)));
+
+        assertAll(
+            () -> assertEquals(Subi.EXECUTION_CYCLES_DN, cycles),
+            () -> assertEquals(0x0000_00FF, cpu.registers().data(0)),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertTrue(cpu.statusRegister().isCarrySet()),
+            () -> assertTrue(cpu.statusRegister().isExtendSet())
+        );
+    }
+
+    @Test
+    void negOpUsesResolverBackedReadModifyWrite() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x0000_0001);
+
+        int cycles = new NegOp().execute(cpu, null, decoded(Opcode.NEG, Size.BYTE,
+            EffectiveAddress.none(), EffectiveAddress.dataReg(0)));
+
+        assertAll(
+            () -> assertEquals(Neg.EXECUTION_CYCLES, cycles),
             () -> assertEquals(0x0000_00FF, cpu.registers().data(0)),
             () -> assertTrue(cpu.statusRegister().isNegativeSet()),
             () -> assertTrue(cpu.statusRegister().isCarrySet()),

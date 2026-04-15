@@ -23,11 +23,11 @@ public final class BsrOp implements Op {
         DispatchSupport.requireNoExtension(decoded, "BSR");
 
         EffectiveAddress.Immediate displacement = DispatchSupport.requireImmediateSource(decoded, "BSR");
-        int pc = cpu.registers().programCounter();
+        int returnAddress = cpu.registers().programCounter();
         return Bsr.execute(
-            pc,
+            DispatchSupport.branchBase(cpu, decoded.size()),
             displacement.value(),
-            pc,
+            returnAddress,
             value -> DispatchSupport.pushLong(cpu, bus, value),
             cpu.registers()::setProgramCounter
         );

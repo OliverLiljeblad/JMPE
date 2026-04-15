@@ -78,6 +78,19 @@ To see the current end-to-end trace flows with only the important lines:
 ./tools/machine-ten-step-trace.sh
 ```
 
+## Optional local ROM boot smoke test
+If you have a local Mac Plus ROM outside the repository, you can run a bounded boot smoke test:
+
+```bash
+./tools/boot-rom-smoke.sh /path/to/mac-plus.rom
+
+# or increase the step budget
+./tools/boot-rom-smoke.sh /path/to/mac-plus.rom 64
+```
+
+If you prefer running Gradle directly, the test also accepts `-Djmpe.rom=/path/to/mac-plus.rom`
+and `-Djmpe.boot.steps=32`. ROM binaries are not committed to this repository.
+
 ## Project layout
 ```text
 src/main/java/com/JMPE/

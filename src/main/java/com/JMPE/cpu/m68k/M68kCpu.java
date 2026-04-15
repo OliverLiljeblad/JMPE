@@ -4,9 +4,15 @@ import com.JMPE.bus.Bus;
 import com.JMPE.bus.Rom;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher;
+import com.JMPE.cpu.m68k.exceptions.ExceptionFrameKind;
+import com.JMPE.cpu.m68k.exceptions.Group0Fault;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
+import com.JMPE.machine.Interrupts;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -15,10 +21,19 @@ import java.util.function.Consumer;
  */
 public final class M68kCpu {
     private static final Decoder DECODER = new Decoder();
+    private static final int INTERRUPT_AUTOVECTOR_CYCLES = 44;
     private static final int RESET_INTERRUPT_MASK = 7;
 
     private final Registers registers;
     private final StatusRegister statusRegister;
+    private final Deque<ExceptionFrameKind> exceptionFrames = new ArrayDeque<>();
+    private boolean stopped;
+
+    private enum Group0AccessPhase {
+        OPCODE_FETCH,
+        EXTENSION_FETCH,
+        EXECUTE
+    }
 
     public M68kCpu() {
         this(new Registers(), new StatusRegister());
@@ -37,6 +52,8 @@ public final class M68kCpu {
         }
         this.registers = registers;
         this.statusRegister = statusRegister;
+        this.statusRegister.setSupervisorModeListener(this.registers::setSupervisorStackActive);
+        this.registers.setSupervisorStackActive(this.statusRegister.isSupervisorSet());
     }
 
     public Registers registers() {
@@ -45,6 +62,18 @@ public final class M68kCpu {
 
     public StatusRegister statusRegister() {
         return statusRegister;
+    }
+
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    public void stop() {
+        stopped = true;
+    }
+
+    public void clearStopped() {
+        stopped = false;
     }
 
     /**
@@ -59,13 +88,14 @@ public final class M68kCpu {
             throw new IllegalArgumentException("rom must not be null");
         }
 
-        registers.setStackPointer(rom.initialSupervisorStackPointer());
-        registers.setProgramCounter(rom.initialProgramCounter());
-
         statusRegister.setRawValue(0);
         statusRegister.setSupervisor(true);
         statusRegister.setTrace(false);
         statusRegister.setInterruptMask(RESET_INTERRUPT_MASK);
+        registers.setSupervisorStackPointer(rom.initialSupervisorStackPointer());
+        registers.setProgramCounter(rom.initialProgramCounter());
+        clearExceptionFrames();
+        stopped = false;
     }
 
     /**
@@ -96,28 +126,91 @@ public final class M68kCpu {
      */
     public StepReport step(Bus bus,
                            DispatchTable dispatchTable,
+                           Interrupts interrupts,
                            Consumer<String> reporter) throws IllegalInstructionException {
         Objects.requireNonNull(bus, "bus must not be null");
         Objects.requireNonNull(dispatchTable, "dispatchTable must not be null");
+        Objects.requireNonNull(interrupts, "interrupts must not be null");
         Objects.requireNonNull(reporter, "reporter must not be null");
 
         StepSnapshot before = StepSnapshot.capture(registers, statusRegister);
-        int opword = bus.readWord(registers.programCounter());
-        String instructionName = String.format("0x%04X", opword & 0xFFFF);
+        int pendingInterruptLevel = pendingInterruptLevel(interrupts);
+        if (pendingInterruptLevel > statusRegister.interruptMask()) {
+            ExceptionDispatcher.dispatchInterruptAutovector(this, bus, pendingInterruptLevel);
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.success(
+                "INTERRUPT_LEVEL_" + pendingInterruptLevel,
+                before,
+                after,
+                INTERRUPT_AUTOVECTOR_CYCLES
+            );
+            reporter.accept(report.toLogLine());
+            return report;
+        }
+        if (stopped) {
+            StepReport report = StepReport.success("STOPPED", before, before, 0);
+            reporter.accept(report.toLogLine());
+            return report;
+        }
+        int opword = 0;
+        boolean opcodeFetched = false;
+        Group0AccessPhase group0AccessPhase = Group0AccessPhase.OPCODE_FETCH;
+        String instructionName = "0x????";
 
         try {
+            opword = bus.readWord(registers.programCounter());
+            opcodeFetched = true;
+            instructionName = String.format("0x%04X", opword & 0xFFFF);
+
+            group0AccessPhase = Group0AccessPhase.EXTENSION_FETCH;
             DecodedInstruction decoded = DECODER.decode(opword, bus, registers.programCounter() + 2);
             instructionName = decoded.opcode().name();
 
             registers.setProgramCounter(decoded.nextPc());
             Op handler = dispatchTable.lookup(decoded.opcode());
+            group0AccessPhase = Group0AccessPhase.EXECUTE;
             int cycles = handler.execute(this, bus, decoded);
 
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
             StepReport report = StepReport.success(instructionName, before, after, cycles);
             reporter.accept(report.toLogLine());
             return report;
-        } catch (IllegalInstructionException | RuntimeException exception) {
+        } catch (IllegalInstructionException exception) {
+            if (ExceptionDispatcher.dispatchIfSupported(this, bus, exception)) {
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
+            StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+            StepReport report = StepReport.failure(instructionName, before, after, exception.getMessage());
+            reporter.accept(report.toLogLine());
+            throw exception;
+        } catch (RuntimeException exception) {
+            if (exception instanceof Group0Fault group0Fault) {
+                ExceptionDispatcher.dispatchGroup0Fault(
+                    this,
+                    bus,
+                    group0Fault,
+                    savedGroup0ProgramCounter(before, group0AccessPhase),
+                    opcodeFetched ? opword : 0,
+                    group0AccessPhase != Group0AccessPhase.EXECUTE,
+                    isSupervisorSet(before.statusRegister())
+                );
+                if (!opcodeFetched && group0AccessPhase == Group0AccessPhase.OPCODE_FETCH) {
+                    instructionName = group0Fault.exceptionVector().name();
+                }
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
+            if (ExceptionDispatcher.dispatchIfSupported(this, bus, exception)) {
+                StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
+                StepReport report = StepReport.success(instructionName, before, after, 0);
+                reporter.accept(report.toLogLine());
+                return report;
+            }
             StepSnapshot after = StepSnapshot.capture(registers, statusRegister);
             StepReport report = StepReport.failure(instructionName, before, after, exception.getMessage());
             reporter.accept(report.toLogLine());
@@ -125,14 +218,46 @@ public final class M68kCpu {
         }
     }
 
+    public StepReport step(Bus bus,
+                           DispatchTable dispatchTable,
+                           Consumer<String> reporter) throws IllegalInstructionException {
+        return step(bus, dispatchTable, Interrupts.none(), reporter);
+    }
+
     public StepReport step(Bus bus, DispatchTable dispatchTable) throws IllegalInstructionException {
-        return step(bus, dispatchTable, ignored -> {
+        return step(bus, dispatchTable, Interrupts.none(), ignored -> {
+        });
+    }
+
+    public StepReport step(Bus bus,
+                           DispatchTable dispatchTable,
+                           Interrupts interrupts) throws IllegalInstructionException {
+        return step(bus, dispatchTable, interrupts, ignored -> {
         });
     }
 
     public StepReport stepWithConsoleReport(Bus bus,
                                             DispatchTable dispatchTable) throws IllegalInstructionException {
-        return step(bus, dispatchTable, System.out::println);
+        return step(bus, dispatchTable, Interrupts.none(), System.out::println);
+    }
+
+    public StepReport stepWithConsoleReport(Bus bus,
+                                            DispatchTable dispatchTable,
+                                            Interrupts interrupts) throws IllegalInstructionException {
+        return step(bus, dispatchTable, interrupts, System.out::println);
+    }
+
+    public void recordExceptionFrame(ExceptionFrameKind frameKind) {
+        exceptionFrames.addLast(Objects.requireNonNull(frameKind, "frameKind must not be null"));
+    }
+
+    public ExceptionFrameKind consumeExceptionFrameOrDefault(ExceptionFrameKind defaultFrameKind) {
+        Objects.requireNonNull(defaultFrameKind, "defaultFrameKind must not be null");
+        return exceptionFrames.isEmpty() ? defaultFrameKind : exceptionFrames.removeLast();
+    }
+
+    public void clearExceptionFrames() {
+        exceptionFrames.clear();
     }
 
     /**
@@ -168,6 +293,25 @@ public final class M68kCpu {
 
     public StepReport executeStepWithConsoleReport(String instructionName, StepExecutor stepExecutor) {
         return executeStepWithReport(instructionName, stepExecutor, System.out::println);
+    }
+
+    private static int savedGroup0ProgramCounter(StepSnapshot before, Group0AccessPhase group0AccessPhase) {
+        return switch (group0AccessPhase) {
+            case OPCODE_FETCH -> before.programCounter();
+            case EXTENSION_FETCH, EXECUTE -> before.programCounter() + 2;
+        };
+    }
+
+    private static boolean isSupervisorSet(int rawStatusRegister) {
+        return (rawStatusRegister & (1 << 13)) != 0;
+    }
+
+    private static int pendingInterruptLevel(Interrupts interrupts) {
+        int pendingInterruptLevel = interrupts.highestPendingLevel();
+        if (pendingInterruptLevel < 0 || pendingInterruptLevel > RESET_INTERRUPT_MASK) {
+            throw new IllegalArgumentException("interrupt level must be in range 0..7");
+        }
+        return pendingInterruptLevel;
     }
 
     @FunctionalInterface

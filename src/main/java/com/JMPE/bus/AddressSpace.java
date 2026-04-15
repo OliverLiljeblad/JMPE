@@ -2,6 +2,7 @@ package com.JMPE.bus;
 
 import com.JMPE.cpu.m68k.exceptions.AddressErrorException;
 import com.JMPE.cpu.m68k.exceptions.BusErrorException;
+import com.JMPE.cpu.m68k.exceptions.FaultAccessType;
 import com.JMPE.machine.MacPlusMachine;
 
 import java.util.ArrayList;
@@ -25,9 +26,8 @@ import java.util.List;
  * <h2>Unmapped accesses</h2>
  * A read or write to an address that no region covers fires a
  * {@link BusErrorException}.  On real Mac Plus hardware this would assert the
- * /BERR line, which causes the 68000 to take a Bus Error exception.  The CPU
- * catches {@code BusErrorException} and routes it through
- * {@link com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher}.
+ * /BERR line, which causes the 68000 to take a Bus Error exception through
+ * the group-0 frame path handled by the CPU core.
  *
  * <h2>Region overlap</h2>
  * Overlapping regions are not permitted.  {@link #addRegion} throws
@@ -89,7 +89,8 @@ public final class AddressSpace implements Bus {
     @Override
     public int readByte(int address) throws BusErrorException {
         int addr = address & ADDRESS_MASK;
-        return regionAt(addr).readByte(addr - regionAt(addr).base());
+        MemoryRegion region = regionAt(addr, FaultAccessType.READ);
+        return region.readByte(addr - region.base());
         // Note: two calls to regionAt — inlined below for clarity; a hot JIT
         // will inline and eliminate the double lookup.
     }
@@ -97,16 +98,16 @@ public final class AddressSpace implements Bus {
     @Override
     public int readWord(int address) throws BusErrorException, AddressErrorException {
         int addr = address & ADDRESS_MASK;
-        checkAlignment(addr, address);
-        MemoryRegion r = regionAt(addr);
+        checkAlignment(addr, address, FaultAccessType.READ);
+        MemoryRegion r = regionAt(addr, FaultAccessType.READ);
         return r.readWord(addr - r.base());
     }
 
     @Override
     public int readLong(int address) throws BusErrorException, AddressErrorException {
         int addr = address & ADDRESS_MASK;
-        checkAlignment(addr, address);
-        MemoryRegion r = regionAt(addr);
+        checkAlignment(addr, address, FaultAccessType.READ);
+        MemoryRegion r = regionAt(addr, FaultAccessType.READ);
         return r.readLong(addr - r.base());
     }
 
@@ -117,23 +118,23 @@ public final class AddressSpace implements Bus {
     @Override
     public void writeByte(int address, int value) throws BusErrorException {
         int addr = address & ADDRESS_MASK;
-        MemoryRegion r = regionAt(addr);
+        MemoryRegion r = regionAt(addr, FaultAccessType.WRITE);
         r.writeByte(addr - r.base(), value);
     }
 
     @Override
     public void writeWord(int address, int value) throws BusErrorException, AddressErrorException {
         int addr = address & ADDRESS_MASK;
-        checkAlignment(addr, address);
-        MemoryRegion r = regionAt(addr);
+        checkAlignment(addr, address, FaultAccessType.WRITE);
+        MemoryRegion r = regionAt(addr, FaultAccessType.WRITE);
         r.writeWord(addr - r.base(), value);
     }
 
     @Override
     public void writeLong(int address, int value) throws AddressErrorException, BusErrorException {
         int addr = address & ADDRESS_MASK;
-        checkAlignment(addr, address);
-        MemoryRegion r = regionAt(addr);
+        checkAlignment(addr, address, FaultAccessType.WRITE);
+        MemoryRegion r = regionAt(addr, FaultAccessType.WRITE);
         r.writeLong(addr - r.base(), value);
     }
 
@@ -145,13 +146,13 @@ public final class AddressSpace implements Bus {
      * Finds the region that owns {@code addr}, or throws {@link BusErrorException}
      * if no region covers it.
      */
-    private MemoryRegion regionAt(int addr) throws BusErrorException {
+    private MemoryRegion regionAt(int addr, FaultAccessType accessType) throws BusErrorException {
         for (MemoryRegion r : regions) {
             if (addr >= r.base() && addr < r.base() + r.size()) {
                 return r;
             }
         }
-        throw new BusErrorException(addr);
+        throw new BusErrorException(addr, accessType);
     }
 
     /**
@@ -161,9 +162,9 @@ public final class AddressSpace implements Bus {
      * @param addr    the 24-bit masked address being accessed
      * @param rawAddr the original address before masking, for the error report
      */
-    private static void checkAlignment(int addr, int rawAddr) throws AddressErrorException {
+    private static void checkAlignment(int addr, int rawAddr, FaultAccessType accessType) throws AddressErrorException {
         if ((addr & 1) != 0) {
-            throw new AddressErrorException(rawAddr);
+            throw new AddressErrorException(rawAddr, accessType);
         }
     }
 }

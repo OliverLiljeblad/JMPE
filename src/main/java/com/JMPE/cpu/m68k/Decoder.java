@@ -777,6 +777,9 @@ public final class Decoder {
                 yield switch (sz) {
                     case 0b00 -> {
                         // NBCD — byte operation, no source EA
+                        if (mode == 0b001 || (mode == 0b111 && reg >= 0b010)) {
+                            throw new IllegalInstructionException(op, opAddr);
+                        }
                         EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
                         yield new DecodedInstruction(
                             Opcode.NBCD, Size.BYTE,
@@ -844,6 +847,9 @@ public final class Decoder {
                 if (sz == 0b11) {
                     // TAS — test-and-set; BYTE, atomic RMW on real hardware
                     EffectiveAddress dst = decodeEa(eaMode(op), regY(op), Size.BYTE, bus, cursor);
+                    if (!isDataAlterable(dst)) {
+                        throw new IllegalInstructionException(op, opAddr);
+                    }
                     yield new DecodedInstruction(
                         Opcode.TAS, Size.BYTE,
                         EffectiveAddress.none(), dst, 0, cursor[0]);
@@ -1181,20 +1187,45 @@ public final class Decoder {
      *
      * <p>For Scc/DBcc, bits 11:8 are the condition code. The DBcc form is the
      * special mode=001 slot and uses the low register field as a data register,
-     * not an address register. Those helpers are intentionally deferred, so this
-     * decoder now leaves that sub-space behind explicit guarded stubs.
+     * not an address register. DBcc always carries a signed 16-bit displacement
+     * extension word; Scc instead writes a conditional byte result to an alterable
+     * destination EA and carries the raw condition in the decoded extension field.
      */
     private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) throws IllegalInstructionException {
-        int opwordAddr = extPc - 2;
         int sizeBits = sizeBits(op);
 
         if (sizeBits == 0b11) {
             if (eaMode(op) == 0b001) {
-                throw new UnsupportedOperationException("DBcc decode not implemented yet");
+                int[] cursor = {extPc};
+                return new DecodedInstruction(
+                    Opcode.DBcc,
+                    Size.UNSIZED,
+                    EffectiveAddress.immediate(readExtWord(bus, cursor)),
+                    EffectiveAddress.dataReg(regY(op)),
+                    condition(op),
+                    cursor[0]
+                );
             }
-            throw new UnsupportedOperationException("Scc decode not implemented yet");
+            int opwordAddr = extPc - 2;
+            int mode = eaMode(op);
+            int reg = regY(op);
+            if (mode == 0b111 && reg >= 0b010) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+
+            int[] cursor = {extPc};
+            EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
+            return new DecodedInstruction(
+                Opcode.Scc,
+                Size.BYTE,
+                EffectiveAddress.none(),
+                dst,
+                condition(op),
+                cursor[0]
+            );
         }
 
+        int opwordAddr = extPc - 2;
         Size size = decodeSize(sizeBits, op, opwordAddr);
         int mode = eaMode(op);
         int reg = regY(op);
@@ -1304,9 +1335,22 @@ public final class Decoder {
      * Bits 7:6 = 00 and specific EA encoding → SBCD.
      * Otherwise → OR Dn,<ea> or OR <ea>,Dn (direction from bit 8).
      */
-    private DecodedInstruction decodeLine8(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLine8(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int opwordAddr = extPc - 2;
+        int sizeBits = sizeBits(op);
+        int mode = eaMode(op);
+
+        if (sizeBits == 0b11) {
+            return decodeWordMultiplyOrDivide((op & 0x0100) != 0 ? Opcode.DIVS : Opcode.DIVU, op, bus, extPc);
+        }
+        if (directionToEa(op) && mode < 0b010) {
+            if (sizeBits == 0b00) {
+                return decodeBcdRegisterOrPredecrement(Opcode.SBCD, op, opwordAddr, extPc);
+            }
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        return decodeRegisterEaBinaryOp(Opcode.OR, op, bus, extPc);
     }
 
     /**
@@ -1316,9 +1360,18 @@ public final class Decoder {
      * follows a different encoding than the normal 2-bit size field).
      * SUBX is distinguished by bit 8 = 1 with bits 5:3 = 000 (register) or 001 (memory).
      */
-    private DecodedInstruction decodeLine9(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLine9(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int sizeBits = sizeBits(op);
+        int mode = eaMode(op);
+
+        if (sizeBits == 0b11) {
+            return decodeAddressRegisterBinaryOp(Opcode.SUBA, op, bus, extPc);
+        }
+        if (directionToEa(op) && mode < 0b010) {
+            return decodeAddSubX(Opcode.SUBX, op, extPc - 2, extPc);
+        }
+
+        return decodeRegisterEaBinaryOp(Opcode.SUB, op, bus, extPc);
     }
 
     /**
@@ -1333,13 +1386,12 @@ public final class Decoder {
      * <p>No extension words are consumed — the trap vector is in the opword itself.
      */
     private DecodedInstruction decodeLineA(int op, int extPc) {
-        int trapVector = op & 0x0FFF;
         return new DecodedInstruction(
             Opcode.LINE_A_TRAP,
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            trapVector,
+            op & 0xFFFF,
             extPc   // no extension words consumed
         );
     }
@@ -1351,8 +1403,44 @@ public final class Decoder {
      * Bits 7:6 = 11 → CMPA. Bit 8 = 1 (and not CMPM) → EOR. Bit 8 = 0 → CMP.
      */
     private DecodedInstruction decodeLineB(int op, Bus bus, int extPc) throws IllegalInstructionException {
-        // Currently unimplemented: report as illegal instead of crashing with RuntimeException.
-        throw new IllegalInstructionException(op, extPc);
+        int opwordAddr = extPc - 2;
+        int sizeBits = sizeBits(op);
+        int mode = eaMode(op);
+        int reg = regY(op);
+        int[] cursor = {extPc};
+
+        if (sizeBits == 0b11) {
+            return decodeAddressRegisterBinaryOp(Opcode.CMPA, op, bus, extPc);
+        }
+
+        Size size = decodeSize(sizeBits, op, opwordAddr);
+        if ((op & 0x0100) == 0) {
+            if (mode == 0b001) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+            EffectiveAddress src = decodeEa(mode, reg, size, bus, cursor);
+            return new DecodedInstruction(
+                Opcode.CMP,
+                size,
+                src,
+                EffectiveAddress.dataReg(regX(op)),
+                0,
+                cursor[0]
+            );
+        }
+
+        if (mode == 0b001) {
+            return decodeCmpm(op, opwordAddr, extPc);
+        }
+        EffectiveAddress dst = decodeEa(mode, reg, size, bus, cursor);
+        return new DecodedInstruction(
+            Opcode.EOR,
+            size,
+            EffectiveAddress.dataReg(regX(op)),
+            dst,
+            0,
+            cursor[0]
+        );
     }
 
     /**
@@ -1362,10 +1450,21 @@ public final class Decoder {
      * Bit 8 = 1 with specific patterns → EXG. Otherwise → AND.
      */
     private DecodedInstruction decodeLineC(int op, Bus bus, int extPc) throws IllegalInstructionException {
-        // AND/MUL/ABCD/EXG decoding is not yet implemented. Treat all Line C
-        // opwords as illegal so that the CPU can route them via the standard
-        // illegal-instruction exception vector instead of crashing the emulator.
-        throw new IllegalInstructionException(op, extPc);
+        int opwordAddr = extPc - 2;
+        int sizeBits = sizeBits(op);
+        int mode = eaMode(op);
+
+        if (sizeBits == 0b11) {
+            return decodeWordMultiplyOrDivide((op & 0x0100) != 0 ? Opcode.MULS : Opcode.MULU, op, bus, extPc);
+        }
+        if (directionToEa(op) && mode < 0b010) {
+            if (sizeBits == 0b00) {
+                return decodeBcdRegisterOrPredecrement(Opcode.ABCD, op, opwordAddr, extPc);
+            }
+            return decodeExg(op, opwordAddr, extPc);
+        }
+
+        return decodeRegisterEaBinaryOp(Opcode.AND, op, bus, extPc);
     }
 
     /**
@@ -1374,9 +1473,18 @@ public final class Decoder {
      * <p>Mirror of Line 9 (SUB). Same structural rules apply; see
      * {@link #decodeLine9} comments.
      */
-    private DecodedInstruction decodeLineD(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLineD(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        int sizeBits = sizeBits(op);
+        int mode = eaMode(op);
+
+        if (sizeBits == 0b11) {
+            return decodeAddressRegisterBinaryOp(Opcode.ADDA, op, bus, extPc);
+        }
+        if (directionToEa(op) && mode < 0b010) {
+            return decodeAddSubX(Opcode.ADDX, op, extPc - 2, extPc);
+        }
+
+        return decodeRegisterEaBinaryOp(Opcode.ADD, op, bus, extPc);
     }
 
     /**
@@ -1387,9 +1495,257 @@ public final class Decoder {
      * (11). For register shifts, bit 5 selects immediate count vs. register count,
      * and bits 4:3 encode the operation type (AS/LS/ROX/RO).
      */
-    private DecodedInstruction decodeLineE(int op, Bus bus, int extPc) {
-        // TODO: implement
-        throw new RuntimeException("Not implemented");
+    private DecodedInstruction decodeLineE(int op, Bus bus, int extPc) throws IllegalInstructionException {
+        if (sizeBits(op) == 0b11) {
+            return decodeMemoryShiftOrRotate(op, bus, extPc);
+        }
+        return decodeRegisterShiftOrRotate(op, extPc - 2, extPc);
+    }
+
+    private static DecodedInstruction decodeRegisterEaBinaryOp(
+        Opcode opcode, int op, Bus bus, int extPc) throws IllegalInstructionException {
+
+        int opwordAddr = extPc - 2;
+        Size size = decodeSize(sizeBits(op), op, opwordAddr);
+        int mode = eaMode(op);
+        int reg = regY(op);
+        int[] cursor = {extPc};
+
+        if (!directionToEa(op)) {
+            if (mode == 0b001) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+            EffectiveAddress src = decodeEa(mode, reg, size, bus, cursor);
+            return new DecodedInstruction(
+                opcode,
+                size,
+                src,
+                EffectiveAddress.dataReg(regX(op)),
+                0,
+                cursor[0]
+            );
+        }
+
+        EffectiveAddress dst = decodeEa(mode, reg, size, bus, cursor);
+        return new DecodedInstruction(
+            opcode,
+            size,
+            EffectiveAddress.dataReg(regX(op)),
+            dst,
+            0,
+            cursor[0]
+        );
+    }
+
+    private static DecodedInstruction decodeWordMultiplyOrDivide(
+        Opcode opcode, int op, Bus bus, int extPc) throws IllegalInstructionException {
+
+        int opwordAddr = extPc - 2;
+        if (eaMode(op) == 0b001) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        int[] cursor = {extPc};
+        EffectiveAddress src = decodeEa(eaMode(op), regY(op), Size.WORD, bus, cursor);
+        return new DecodedInstruction(
+            opcode,
+            Size.WORD,
+            src,
+            EffectiveAddress.dataReg(regX(op)),
+            0,
+            cursor[0]
+        );
+    }
+
+    private static DecodedInstruction decodeAddressRegisterBinaryOp(
+        Opcode opcode, int op, Bus bus, int extPc) throws IllegalInstructionException {
+
+        int[] cursor = {extPc};
+        Size size = decodeSingleBitSize((op >>> 8) & 1);
+        EffectiveAddress src = decodeEa(eaMode(op), regY(op), size, bus, cursor);
+        return new DecodedInstruction(
+            opcode,
+            size,
+            src,
+            EffectiveAddress.addrReg(regX(op)),
+            0,
+            cursor[0]
+        );
+    }
+
+    private static DecodedInstruction decodeBcdRegisterOrPredecrement(
+        Opcode opcode, int op, int opwordAddr, int extPc) throws IllegalInstructionException {
+
+        return switch (eaMode(op)) {
+            case 0b000 -> new DecodedInstruction(
+                opcode,
+                Size.BYTE,
+                EffectiveAddress.dataReg(regY(op)),
+                EffectiveAddress.dataReg(regX(op)),
+                0,
+                extPc
+            );
+            case 0b001 -> new DecodedInstruction(
+                opcode,
+                Size.BYTE,
+                EffectiveAddress.addrRegIndPreDec(regY(op)),
+                EffectiveAddress.addrRegIndPreDec(regX(op)),
+                0,
+                extPc
+            );
+            default -> throw new IllegalInstructionException(op, opwordAddr);
+        };
+    }
+
+    private static boolean isDataAlterable(EffectiveAddress operand) {
+        return operand instanceof EffectiveAddress.DataReg
+            || operand instanceof EffectiveAddress.AddrRegInd
+            || operand instanceof EffectiveAddress.AddrRegIndPostInc
+            || operand instanceof EffectiveAddress.AddrRegIndPreDec
+            || operand instanceof EffectiveAddress.AddrRegIndDisp
+            || operand instanceof EffectiveAddress.AddrRegIndIndex
+            || operand instanceof EffectiveAddress.AbsoluteShort
+            || operand instanceof EffectiveAddress.AbsoluteLong;
+    }
+
+    private static DecodedInstruction decodeAddSubX(
+        Opcode opcode, int op, int opwordAddr, int extPc) throws IllegalInstructionException {
+
+        Size size = decodeSize(sizeBits(op), op, opwordAddr);
+        return switch (eaMode(op)) {
+            case 0b000 -> new DecodedInstruction(
+                opcode,
+                size,
+                EffectiveAddress.dataReg(regY(op)),
+                EffectiveAddress.dataReg(regX(op)),
+                0,
+                extPc
+            );
+            case 0b001 -> new DecodedInstruction(
+                opcode,
+                size,
+                EffectiveAddress.addrRegIndPreDec(regY(op)),
+                EffectiveAddress.addrRegIndPreDec(regX(op)),
+                0,
+                extPc
+            );
+            default -> throw new IllegalInstructionException(op, opwordAddr);
+        };
+    }
+
+    private static DecodedInstruction decodeCmpm(
+        int op, int opwordAddr, int extPc) throws IllegalInstructionException {
+
+        if (eaMode(op) != 0b001) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        Size size = decodeSize(sizeBits(op), op, opwordAddr);
+        return new DecodedInstruction(
+            Opcode.CMPM,
+            size,
+            EffectiveAddress.addrRegIndPostInc(regY(op)),
+            EffectiveAddress.addrRegIndPostInc(regX(op)),
+            0,
+            extPc
+        );
+    }
+
+    private static DecodedInstruction decodeExg(
+        int op, int opwordAddr, int extPc) throws IllegalInstructionException {
+
+        int mode = eaMode(op);
+        int sizeBits = sizeBits(op);
+        EffectiveAddress src;
+        EffectiveAddress dst;
+
+        if (mode == 0b000 && sizeBits == 0b01) {
+            src = EffectiveAddress.dataReg(regX(op));
+            dst = EffectiveAddress.dataReg(regY(op));
+        } else if (mode == 0b001 && sizeBits == 0b01) {
+            src = EffectiveAddress.addrReg(regX(op));
+            dst = EffectiveAddress.addrReg(regY(op));
+        } else if (mode == 0b001 && sizeBits == 0b10) {
+            src = EffectiveAddress.dataReg(regX(op));
+            dst = EffectiveAddress.addrReg(regY(op));
+        } else {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        return new DecodedInstruction(
+            Opcode.EXG,
+            Size.LONG,
+            src,
+            dst,
+            0,
+            extPc
+        );
+    }
+
+    private static DecodedInstruction decodeRegisterShiftOrRotate(
+        int op, int opwordAddr, int extPc) throws IllegalInstructionException {
+
+        int operationBits = (op >>> 3) & 0x3;
+        boolean left = (op & 0x0100) != 0;
+        Opcode opcode = switch (operationBits) {
+            case 0b00 -> left ? Opcode.ASL : Opcode.ASR;
+            case 0b01 -> left ? Opcode.LSL : Opcode.LSR;
+            case 0b10 -> left ? Opcode.ROXL : Opcode.ROXR;
+            case 0b11 -> left ? Opcode.ROL : Opcode.ROR;
+            default -> throw new AssertionError("unreachable: operationBits=" + operationBits);
+        };
+
+        Size size = decodeSize(sizeBits(op), op, opwordAddr);
+        EffectiveAddress src;
+        if ((op & 0x0020) != 0) {
+            src = EffectiveAddress.dataReg(regX(op));
+        } else {
+            int count = regX(op);
+            src = EffectiveAddress.immediate(count == 0 ? 8 : count);
+        }
+
+        return new DecodedInstruction(
+            opcode,
+            size,
+            src,
+            EffectiveAddress.dataReg(regY(op)),
+            0,
+            extPc
+        );
+    }
+
+    private static DecodedInstruction decodeMemoryShiftOrRotate(
+        int op, Bus bus, int extPc) throws IllegalInstructionException {
+
+        int opwordAddr = extPc - 2;
+        int mode = eaMode(op);
+        int reg = regY(op);
+        if (mode < 0b010 || (mode == 0b111 && reg >= 0b010)) {
+            throw new IllegalInstructionException(op, opwordAddr);
+        }
+
+        Opcode opcode = switch ((op >>> 8) & 0x7) {
+            case 0b000 -> Opcode.ASR;
+            case 0b001 -> Opcode.ASL;
+            case 0b010 -> Opcode.LSR;
+            case 0b011 -> Opcode.LSL;
+            case 0b100 -> Opcode.ROXR;
+            case 0b101 -> Opcode.ROXL;
+            case 0b110 -> Opcode.ROR;
+            case 0b111 -> Opcode.ROL;
+            default -> throw new AssertionError("unreachable");
+        };
+
+        int[] cursor = {extPc};
+        EffectiveAddress dst = decodeEa(mode, reg, Size.WORD, bus, cursor);
+        return new DecodedInstruction(
+            opcode,
+            Size.WORD,
+            EffectiveAddress.none(),
+            dst,
+            0,
+            cursor[0]
+        );
     }
 
     /**
@@ -1404,7 +1760,7 @@ public final class Decoder {
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            0,
+            op & 0xFFFF,
             extPc
         );
     }

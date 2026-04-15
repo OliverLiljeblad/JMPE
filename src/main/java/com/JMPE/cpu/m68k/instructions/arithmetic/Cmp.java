@@ -50,7 +50,7 @@ public final class Cmp {
      * CMP intentionally does NOT set X (Extend); that flag is only modified by SUB, SUBQ, SUBX, and similar.
      * </p>
      */
-    private static void updateConditionCodes(
+    static void updateConditionCodes(
         Size size,
         int destinationValue,
         int sourceValue,

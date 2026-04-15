@@ -17,6 +17,9 @@ public final class Registers {
 
     private final int[] dataRegisters = new int[DATA_REGISTER_COUNT];
     private final int[] addressRegisters = new int[ADDRESS_REGISTER_COUNT];
+    private int userStackPointer;
+    private int supervisorStackPointer;
+    private boolean supervisorStackActive;
     private int programCounter;
 
     public int data(int index) {
@@ -28,11 +31,20 @@ public final class Registers {
     }
 
     public int address(int index) {
-        return addressRegisters[validateAddressIndex(index)];
+        int validatedIndex = validateAddressIndex(index);
+        if (validatedIndex == STACK_POINTER_REGISTER) {
+            return stackPointer();
+        }
+        return addressRegisters[validatedIndex];
     }
 
     public void setAddress(int index, int value) {
-        addressRegisters[validateAddressIndex(index)] = value;
+        int validatedIndex = validateAddressIndex(index);
+        if (validatedIndex == STACK_POINTER_REGISTER) {
+            setStackPointer(value);
+            return;
+        }
+        addressRegisters[validatedIndex] = value;
     }
 
     public int stackPointer() {
@@ -41,6 +53,38 @@ public final class Registers {
 
     public void setStackPointer(int value) {
         addressRegisters[STACK_POINTER_REGISTER] = value;
+        if (supervisorStackActive) {
+            supervisorStackPointer = value;
+        } else {
+            userStackPointer = value;
+        }
+    }
+
+    public int userStackPointer() {
+        return userStackPointer;
+    }
+
+    public void setUserStackPointer(int value) {
+        userStackPointer = value;
+        if (!supervisorStackActive) {
+            addressRegisters[STACK_POINTER_REGISTER] = value;
+        }
+    }
+
+    public int supervisorStackPointer() {
+        return supervisorStackPointer;
+    }
+
+    public void setSupervisorStackPointer(int value) {
+        supervisorStackPointer = value;
+        if (supervisorStackActive) {
+            addressRegisters[STACK_POINTER_REGISTER] = value;
+        }
+    }
+
+    public void setSupervisorStackActive(boolean active) {
+        supervisorStackActive = active;
+        addressRegisters[STACK_POINTER_REGISTER] = active ? supervisorStackPointer : userStackPointer;
     }
 
     public int programCounter() {

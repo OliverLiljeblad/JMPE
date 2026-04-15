@@ -13,6 +13,7 @@ public enum Opcode {
     NEG, NEGX,
     MULS, MULU,
     DIVS, DIVU,
+    ABCD, SBCD,
     CMP, CMPA, CMPI, CMPM,
     CLR,
     EXT,

@@ -14,6 +14,8 @@ import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.ChkException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.control.Link;
+import com.JMPE.cpu.m68k.instructions.control.Unlk;
 import org.junit.jupiter.api.Test;
 
 class ControlFlowAndMovemOpTest {
@@ -28,6 +30,42 @@ class ControlFlowAndMovemOpTest {
         assertAll(
             () -> assertEquals(4, cycles),
             () -> assertEquals(0x1020, cpu.registers().address(0))
+        );
+    }
+
+    @Test
+    void linkOpPushesOldFrameRegisterAndAllocatesLocalStackSpace() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x1100);
+        cpu.registers().setAddress(6, 0x2222_0000);
+
+        int cycles = new LinkOp().execute(cpu, bus, decoded(Opcode.LINK, Size.UNSIZED,
+            EffectiveAddress.addrReg(6), EffectiveAddress.none(), -8));
+
+        assertAll(
+            () -> assertEquals(Link.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x10F4, cpu.registers().stackPointer()),
+            () -> assertEquals(0x10FC, cpu.registers().address(6)),
+            () -> assertEquals(0x2222_0000, bus.readLong(0x10FC))
+        );
+    }
+
+    @Test
+    void unlkOpRestoresFrameRegisterAndReleasesStackFrame() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x10F4);
+        cpu.registers().setAddress(6, 0x10FC);
+        bus.writeLong(0x10FC, 0x2222_0000);
+
+        int cycles = new UnlkOp().execute(cpu, bus, decoded(Opcode.UNLK, Size.UNSIZED,
+            EffectiveAddress.addrReg(6), EffectiveAddress.none(), 0));
+
+        assertAll(
+            () -> assertEquals(Unlk.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x1100, cpu.registers().stackPointer()),
+            () -> assertEquals(0x2222_0000, cpu.registers().address(6))
         );
     }
 
@@ -95,7 +133,7 @@ class ControlFlowAndMovemOpTest {
 
         assertAll(
             () -> assertEquals(18, cycles),
-            () -> assertEquals(0x200C, cpu.registers().programCounter()),
+            () -> assertEquals(0x200A, cpu.registers().programCounter()),
             () -> assertEquals(0x10FC, cpu.registers().stackPointer()),
             () -> assertEquals(0x0000_2004, bus.readLong(0x10FC))
         );
@@ -124,6 +162,62 @@ class ControlFlowAndMovemOpTest {
             () -> assertEquals(0x3002, fallthroughCpu.registers().programCounter()),
             () -> assertFalse(branchingCpu.statusRegister().isZeroSet()),
             () -> assertTrue(fallthroughCpu.statusRegister().isZeroSet())
+        );
+    }
+
+    @Test
+    void dbccOpDecrementsLowWordAndBranchesWhenConditionIsFalse() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x3004);
+        cpu.registers().setData(0, 0x1234_0001);
+
+        int cycles = new DbccOp().execute(cpu, null, decoded(Opcode.DBcc, Size.UNSIZED,
+            EffectiveAddress.immediate(-4), EffectiveAddress.dataReg(0), 0x1));
+
+        assertAll(
+            () -> assertEquals(10, cycles),
+            () -> assertEquals(0x1234_0000, cpu.registers().data(0)),
+            () -> assertEquals(0x2FFE, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
+    void dbccOpFallsThroughWithoutTouchingFlagsWhenConditionIsTrue() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x3004);
+        cpu.registers().setData(0, 0x0000_0001);
+        cpu.statusRegister().setZero(false);
+        cpu.statusRegister().setNegative(true);
+
+        int cycles = new DbccOp().execute(cpu, null, decoded(Opcode.DBcc, Size.UNSIZED,
+            EffectiveAddress.immediate(-4), EffectiveAddress.dataReg(0), 0x6));
+
+        assertAll(
+            () -> assertEquals(10, cycles),
+            () -> assertEquals(0x0000_0001, cpu.registers().data(0)),
+            () -> assertEquals(0x3004, cpu.registers().programCounter()),
+            () -> assertFalse(cpu.statusRegister().isZeroSet()),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet())
+        );
+    }
+
+    @Test
+    void sccOpWritesConditionalByteWithoutTouchingFlags() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setData(0, 0x1234_5600);
+        cpu.statusRegister().setZero(false);
+        cpu.statusRegister().setNegative(true);
+        cpu.statusRegister().setCarry(true);
+
+        int cycles = new SccOp().execute(cpu, null, decoded(Opcode.Scc, Size.BYTE,
+            EffectiveAddress.none(), EffectiveAddress.dataReg(0), 0x6));
+
+        assertAll(
+            () -> assertEquals(4, cycles),
+            () -> assertEquals(0x1234_56FF, cpu.registers().data(0)),
+            () -> assertFalse(cpu.statusRegister().isZeroSet()),
+            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertTrue(cpu.statusRegister().isCarrySet())
         );
     }
 

@@ -54,8 +54,232 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
+    void decodesSubiAndAddiImmediateForms() throws IllegalInstructionException {
+        DecodedInstruction subi = decoder.decode(0x0400, busWithWords(EXTENSION_PC, 0x0001), EXTENSION_PC);
+        DecodedInstruction addi = decoder.decode(0x0600, busWithWords(EXTENSION_PC, 0x0001), EXTENSION_PC);
+
+        assertEquals(Opcode.SUBI, subi.opcode());
+        assertEquals(Size.BYTE, subi.size());
+        assertEquals(EffectiveAddress.immediate(1), subi.src());
+        assertEquals(EffectiveAddress.dataReg(0), subi.dst());
+        assertEquals(INSTRUCTION_PC + 4, subi.nextPc());
+
+        assertEquals(Opcode.ADDI, addi.opcode());
+        assertEquals(Size.BYTE, addi.size());
+        assertEquals(EffectiveAddress.immediate(1), addi.src());
+        assertEquals(EffectiveAddress.dataReg(0), addi.dst());
+        assertEquals(INSTRUCTION_PC + 4, addi.nextPc());
+    }
+
+    @Test
     void rejectsByteQuickToAddressRegister() {
         assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x5208, null, EXTENSION_PC));
+    }
+
+    @Test
+    void decodesDbraWithSignedWordDisplacementAndCounterRegister() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x51C8, busWithWords(EXTENSION_PC, 0xFFFC), EXTENSION_PC);
+
+        assertEquals(Opcode.DBcc, decoded.opcode());
+        assertEquals(Size.UNSIZED, decoded.size());
+        assertEquals(EffectiveAddress.immediate(-4), decoded.src());
+        assertEquals(EffectiveAddress.dataReg(0), decoded.dst());
+        assertEquals(0x1, decoded.extension());
+        assertEquals(INSTRUCTION_PC + 4, decoded.nextPc());
+    }
+
+    @Test
+    void decodesSneToDataRegisterWithConditionPayload() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x56C0, null, EXTENSION_PC);
+
+        assertEquals(Opcode.Scc, decoded.opcode());
+        assertEquals(Size.BYTE, decoded.size());
+        assertEquals(EffectiveAddress.none(), decoded.src());
+        assertEquals(EffectiveAddress.dataReg(0), decoded.dst());
+        assertEquals(0x6, decoded.extension());
+        assertEquals(EXTENSION_PC, decoded.nextPc());
+    }
+
+    @Test
+    void rejectsSccToImmediateDestination() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x56FC, null, EXTENSION_PC));
+    }
+
+    @Test
+    void decodesExtWordAndLongDataRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction extWord = decoder.decode(0x4880, null, EXTENSION_PC);
+        DecodedInstruction extLong = decoder.decode(0x48C1, null, EXTENSION_PC);
+
+        assertEquals(Opcode.EXT, extWord.opcode());
+        assertEquals(Size.WORD, extWord.size());
+        assertEquals(EffectiveAddress.none(), extWord.src());
+        assertEquals(EffectiveAddress.dataReg(0), extWord.dst());
+        assertEquals(EXTENSION_PC, extWord.nextPc());
+
+        assertEquals(Opcode.EXT, extLong.opcode());
+        assertEquals(Size.LONG, extLong.size());
+        assertEquals(EffectiveAddress.none(), extLong.src());
+        assertEquals(EffectiveAddress.dataReg(1), extLong.dst());
+        assertEquals(EXTENSION_PC, extLong.nextPc());
+    }
+
+    @Test
+    void decodesNegxNbcdNegAndSwapDataRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction negx = decoder.decode(0x4000, null, EXTENSION_PC);
+        DecodedInstruction nbcd = decoder.decode(0x4800, null, EXTENSION_PC);
+        DecodedInstruction neg = decoder.decode(0x4400, null, EXTENSION_PC);
+        DecodedInstruction swap = decoder.decode(0x4841, null, EXTENSION_PC);
+
+        assertEquals(Opcode.NEGX, negx.opcode());
+        assertEquals(Size.BYTE, negx.size());
+        assertEquals(EffectiveAddress.none(), negx.src());
+        assertEquals(EffectiveAddress.dataReg(0), negx.dst());
+        assertEquals(EXTENSION_PC, negx.nextPc());
+
+        assertEquals(Opcode.NBCD, nbcd.opcode());
+        assertEquals(Size.BYTE, nbcd.size());
+        assertEquals(EffectiveAddress.none(), nbcd.src());
+        assertEquals(EffectiveAddress.dataReg(0), nbcd.dst());
+        assertEquals(EXTENSION_PC, nbcd.nextPc());
+
+        assertEquals(Opcode.NEG, neg.opcode());
+        assertEquals(Size.BYTE, neg.size());
+        assertEquals(EffectiveAddress.none(), neg.src());
+        assertEquals(EffectiveAddress.dataReg(0), neg.dst());
+        assertEquals(EXTENSION_PC, neg.nextPc());
+
+        assertEquals(Opcode.SWAP, swap.opcode());
+        assertEquals(Size.LONG, swap.size());
+        assertEquals(EffectiveAddress.none(), swap.src());
+        assertEquals(EffectiveAddress.dataReg(1), swap.dst());
+        assertEquals(EXTENSION_PC, swap.nextPc());
+    }
+
+    @Test
+    void decodesTasAndMoveUspForms() throws IllegalInstructionException {
+        DecodedInstruction tas = decoder.decode(0x4AC0, null, EXTENSION_PC);
+        DecodedInstruction moveToUsp = decoder.decode(0x4E62, null, EXTENSION_PC);
+        DecodedInstruction moveFromUsp = decoder.decode(0x4E6B, null, EXTENSION_PC);
+
+        assertEquals(Opcode.TAS, tas.opcode());
+        assertEquals(Size.BYTE, tas.size());
+        assertEquals(EffectiveAddress.none(), tas.src());
+        assertEquals(EffectiveAddress.dataReg(0), tas.dst());
+        assertEquals(EXTENSION_PC, tas.nextPc());
+
+        assertEquals(Opcode.MOVE_TO_USP, moveToUsp.opcode());
+        assertEquals(Size.LONG, moveToUsp.size());
+        assertEquals(EffectiveAddress.addrReg(2), moveToUsp.src());
+        assertEquals(EffectiveAddress.none(), moveToUsp.dst());
+        assertEquals(EXTENSION_PC, moveToUsp.nextPc());
+
+        assertEquals(Opcode.MOVE_FROM_USP, moveFromUsp.opcode());
+        assertEquals(Size.LONG, moveFromUsp.size());
+        assertEquals(EffectiveAddress.none(), moveFromUsp.src());
+        assertEquals(EffectiveAddress.addrReg(3), moveFromUsp.dst());
+        assertEquals(EXTENSION_PC, moveFromUsp.nextPc());
+    }
+
+    @Test
+    void decodesLinkAndUnlkAddressRegisterForms() throws IllegalInstructionException {
+        DecodedInstruction link = decoder.decode(0x4E56, busWithWords(EXTENSION_PC, 0xFFF8), EXTENSION_PC);
+        DecodedInstruction unlk = decoder.decode(0x4E5E, null, EXTENSION_PC);
+
+        assertEquals(Opcode.LINK, link.opcode());
+        assertEquals(Size.UNSIZED, link.size());
+        assertEquals(EffectiveAddress.addrReg(6), link.src());
+        assertEquals(EffectiveAddress.none(), link.dst());
+        assertEquals(-8, link.extension());
+        assertEquals(INSTRUCTION_PC + 4, link.nextPc());
+
+        assertEquals(Opcode.UNLK, unlk.opcode());
+        assertEquals(Size.UNSIZED, unlk.size());
+        assertEquals(EffectiveAddress.addrReg(6), unlk.src());
+        assertEquals(EffectiveAddress.none(), unlk.dst());
+        assertEquals(0, unlk.extension());
+        assertEquals(EXTENSION_PC, unlk.nextPc());
+    }
+
+    @Test
+    void decodesResetSingleOpwordForm() throws IllegalInstructionException {
+        DecodedInstruction reset = decoder.decode(0x4E70, null, EXTENSION_PC);
+
+        assertEquals(Opcode.RESET, reset.opcode());
+        assertEquals(Size.UNSIZED, reset.size());
+        assertEquals(EffectiveAddress.none(), reset.src());
+        assertEquals(EffectiveAddress.none(), reset.dst());
+        assertEquals(0, reset.extension());
+        assertEquals(EXTENSION_PC, reset.nextPc());
+    }
+
+    @Test
+    void decodesTrapStopReturnAndLineTrapForms() throws IllegalInstructionException {
+        DecodedInstruction trap = decoder.decode(0x4E43, null, EXTENSION_PC);
+        DecodedInstruction stop = decoder.decode(0x4E72, busWithWords(EXTENSION_PC, 0x2700), EXTENSION_PC);
+        DecodedInstruction rte = decoder.decode(0x4E73, null, EXTENSION_PC);
+        DecodedInstruction trapv = decoder.decode(0x4E76, null, EXTENSION_PC);
+        DecodedInstruction rtr = decoder.decode(0x4E77, null, EXTENSION_PC);
+        DecodedInstruction lineA = decoder.decode(0xA123, null, EXTENSION_PC);
+        DecodedInstruction lineF = decoder.decode(0xF234, null, EXTENSION_PC);
+
+        assertEquals(Opcode.TRAP, trap.opcode());
+        assertEquals(Size.UNSIZED, trap.size());
+        assertEquals(EffectiveAddress.none(), trap.src());
+        assertEquals(EffectiveAddress.none(), trap.dst());
+        assertEquals(3, trap.extension());
+        assertEquals(EXTENSION_PC, trap.nextPc());
+
+        assertEquals(Opcode.STOP, stop.opcode());
+        assertEquals(Size.UNSIZED, stop.size());
+        assertEquals(EffectiveAddress.none(), stop.src());
+        assertEquals(EffectiveAddress.none(), stop.dst());
+        assertEquals(0x2700, stop.extension());
+        assertEquals(INSTRUCTION_PC + 4, stop.nextPc());
+
+        assertEquals(Opcode.RTE, rte.opcode());
+        assertEquals(Size.UNSIZED, rte.size());
+        assertEquals(EffectiveAddress.none(), rte.src());
+        assertEquals(EffectiveAddress.none(), rte.dst());
+        assertEquals(0, rte.extension());
+        assertEquals(EXTENSION_PC, rte.nextPc());
+
+        assertEquals(Opcode.TRAPV, trapv.opcode());
+        assertEquals(Size.UNSIZED, trapv.size());
+        assertEquals(EffectiveAddress.none(), trapv.src());
+        assertEquals(EffectiveAddress.none(), trapv.dst());
+        assertEquals(0, trapv.extension());
+        assertEquals(EXTENSION_PC, trapv.nextPc());
+
+        assertEquals(Opcode.RTR, rtr.opcode());
+        assertEquals(Size.UNSIZED, rtr.size());
+        assertEquals(EffectiveAddress.none(), rtr.src());
+        assertEquals(EffectiveAddress.none(), rtr.dst());
+        assertEquals(0, rtr.extension());
+        assertEquals(EXTENSION_PC, rtr.nextPc());
+
+        assertEquals(Opcode.LINE_A_TRAP, lineA.opcode());
+        assertEquals(Size.UNSIZED, lineA.size());
+        assertEquals(EffectiveAddress.none(), lineA.src());
+        assertEquals(EffectiveAddress.none(), lineA.dst());
+        assertEquals(0xA123, lineA.extension());
+        assertEquals(EXTENSION_PC, lineA.nextPc());
+
+        assertEquals(Opcode.LINE_F_TRAP, lineF.opcode());
+        assertEquals(Size.UNSIZED, lineF.size());
+        assertEquals(EffectiveAddress.none(), lineF.src());
+        assertEquals(EffectiveAddress.none(), lineF.dst());
+        assertEquals(0xF234, lineF.extension());
+        assertEquals(EXTENSION_PC, lineF.nextPc());
+    }
+
+    @Test
+    void rejectsNbcdToAddressRegisterDirect() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4808, null, EXTENSION_PC));
+    }
+
+    @Test
+    void rejectsTasToAddressRegisterDirect() {
+        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x4AC8, null, EXTENSION_PC));
     }
 
     @Test
