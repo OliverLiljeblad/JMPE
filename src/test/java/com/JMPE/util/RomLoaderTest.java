@@ -23,9 +23,9 @@ class RomLoaderTest {
 
         Rom rom = RomLoader.load(romPath, 0x0040_0000);
 
-        assertEquals(0x0040_0000, rom.baseAddress());
-        assertEquals(0x0010, rom.readWord(0x0040_0000));
-        assertEquals(0x1234_5678L, rom.readLong(0x0040_0004));
+        assertEquals(0x0040_0000, rom.base());
+        assertEquals(0x0010, rom.readWord(0));
+        assertEquals(0x1234_5678L, rom.readLong(4));
     }
 
     @Test

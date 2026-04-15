@@ -6,7 +6,6 @@ import com.JMPE.bus.MemoryRegion;
 import com.JMPE.bus.Mmio;
 import com.JMPE.bus.OverlayMemoryRegion;
 import com.JMPE.bus.Rom;
-import com.JMPE.bus.RomRegion;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
@@ -153,11 +152,11 @@ public final class MacPlusMachine {
         return cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
     }
 
-    private static MemoryRegion mainRomRegion(Rom rom) {
-        if (rom.baseAddress() == MAC_PLUS_ROM_BASE) {
-            return new RomRegion(rom, MAC_PLUS_ROM_BASE, MAC_PLUS_ROM_APERTURE_SIZE);
+    private static Rom mainRomRegion(Rom rom) {
+        if (rom.base() == MAC_PLUS_ROM_BASE && rom.backingSize() < MAC_PLUS_ROM_APERTURE_SIZE) {
+            return new Rom(rom.base(), rom.copyBytes(), MAC_PLUS_ROM_APERTURE_SIZE);
         }
-        return new RomRegion(rom);
+        return rom;
     }
 
     private static Mmio viaMmio(Via6522 via) {

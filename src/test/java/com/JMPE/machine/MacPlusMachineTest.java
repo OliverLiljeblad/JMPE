@@ -21,7 +21,7 @@ class MacPlusMachineTest {
         assertNotNull(machine.cpu());
         assertNotNull(machine.bus());
         assertNotNull(machine.cpu().statusRegister());
-        assertEquals(0x0040_0000, machine.rom().baseAddress());
+        assertEquals(0x0040_0000, machine.rom().base());
         assertEquals(0x0040_0100, machine.bus().readLong(0x0040_0004));
         assertEquals(0x0000_2000, machine.cpu().registers().stackPointer());
         assertEquals(0x0040_0100, machine.cpu().registers().programCounter());
