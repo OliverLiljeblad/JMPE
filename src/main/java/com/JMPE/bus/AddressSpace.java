@@ -89,10 +89,10 @@ public final class AddressSpace implements Bus {
     @Override
     public int readByte(int address) throws BusErrorException {
         int addr = address & ADDRESS_MASK;
+        // Note: two calls to regionAt — inlined below for clarity; a hot JIT
+        //       will inline and eliminate the double lookup.
         MemoryRegion region = regionAt(addr, FaultAccessType.READ);
         return region.readByte(addr - region.base());
-        // Note: two calls to regionAt — inlined below for clarity; a hot JIT
-        // will inline and eliminate the double lookup.
     }
 
     @Override
