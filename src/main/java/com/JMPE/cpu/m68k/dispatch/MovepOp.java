@@ -21,12 +21,12 @@ public final class MovepOp implements Op {
 
         return switch (decoded.src()) {
             case EffectiveAddress.DataReg(int srcReg) -> {
-                EffectiveAddress memoryOperand = requireMovepMemoryOperand(decoded.dst());
+                EffectiveAddress memoryOperand = requireMovepMemoryOperand(decoded.src(), decoded.dst());
                 int address = DispatchSupport.computeAddress(memoryOperand, cpu);
                 yield Movep.moveRegisterToMemory(decoded.size(), () -> cpu.registers().data(srcReg), address, bus::writeByte);
             }
             case EffectiveAddress.AddrRegIndDisp ignored -> {
-                EffectiveAddress.DataReg destination = requireMovepRegisterOperand(decoded.dst());
+                EffectiveAddress.DataReg destination = requireMovepRegisterOperand(decoded.src(), decoded.dst());
                 int address = DispatchSupport.computeAddress(decoded.src(), cpu);
                 yield Movep.moveMemoryToRegister(
                     decoded.size(),
@@ -49,18 +49,18 @@ public final class MovepOp implements Op {
         DispatchSupport.requireNoExtension(decoded, "MOVEP");
     }
 
-    private static EffectiveAddress.AddrRegIndDisp requireMovepMemoryOperand(EffectiveAddress operand) {
-        if (operand instanceof EffectiveAddress.AddrRegIndDisp memoryOperand) {
+    private static EffectiveAddress.AddrRegIndDisp requireMovepMemoryOperand(EffectiveAddress src, EffectiveAddress dst) {
+        if (dst instanceof EffectiveAddress.AddrRegIndDisp memoryOperand) {
             return memoryOperand;
         }
-        throw invalidOperands(EffectiveAddress.none(), operand);
+        throw invalidOperands(src, dst);
     }
 
-    private static EffectiveAddress.DataReg requireMovepRegisterOperand(EffectiveAddress operand) {
-        if (operand instanceof EffectiveAddress.DataReg registerOperand) {
+    private static EffectiveAddress.DataReg requireMovepRegisterOperand(EffectiveAddress src, EffectiveAddress dst) {
+        if (dst instanceof EffectiveAddress.DataReg registerOperand) {
             return registerOperand;
         }
-        throw invalidOperands(EffectiveAddress.none(), operand);
+        throw invalidOperands(src, dst);
     }
 
     private static IllegalArgumentException invalidOperands(EffectiveAddress src, EffectiveAddress dst) {

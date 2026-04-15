@@ -64,15 +64,34 @@ class MovepOpTest {
     void rejectsInvalidOperandShapes() {
         M68kCpu cpu = new M68kCpu();
         AddressSpace bus = new AddressSpace();
+        EffectiveAddress src = EffectiveAddress.dataReg(0);
+        EffectiveAddress dst = EffectiveAddress.addrRegInd(1);
 
         IllegalArgumentException thrown = assertThrows(
             IllegalArgumentException.class,
-            () -> new MovepOp().execute(cpu, bus, decoded(Size.WORD,
-                EffectiveAddress.dataReg(0), EffectiveAddress.addrRegInd(1)))
+            () -> new MovepOp().execute(cpu, bus, decoded(Size.WORD, src, dst))
         );
 
         assertEquals(
-            "MOVEP requires one data register and one (d16,An) operand but was src=None[] dst=AddrRegInd[reg=1]",
+            "MOVEP requires one data register and one (d16,An) operand but was src=" + src + " dst=" + dst,
+            thrown.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsInvalidRegisterDestinationWithAccurateOperandMessage() {
+        M68kCpu cpu = new M68kCpu();
+        AddressSpace bus = new AddressSpace();
+        EffectiveAddress src = EffectiveAddress.addrRegIndDisp(1, 0x0010);
+        EffectiveAddress dst = EffectiveAddress.addrReg(0);
+
+        IllegalArgumentException thrown = assertThrows(
+            IllegalArgumentException.class,
+            () -> new MovepOp().execute(cpu, bus, decoded(Size.WORD, src, dst))
+        );
+
+        assertEquals(
+            "MOVEP requires one data register and one (d16,An) operand but was src=" + src + " dst=" + dst,
             thrown.getMessage()
         );
     }
