@@ -49,4 +49,22 @@ class RegistersTest {
         assertArrayEquals(new int[] {0, 0x1111_1111, 0, 0, 0, 0, 0, 0}, registers.copyDataRegisters());
         assertArrayEquals(new int[] {0, 0x2222_2222, 0, 0, 0, 0, 0, 0}, registers.copyAddressRegisters());
     }
+
+    @Test
+    void tracksSeparateUserAndSupervisorStackPointers() {
+        Registers registers = new Registers();
+        registers.setUserStackPointer(0x0000_1000);
+        registers.setSupervisorStackPointer(0x0000_2000);
+
+        registers.setSupervisorStackActive(true);
+        assertEquals(0x0000_2000, registers.stackPointer());
+        assertEquals(0x0000_2000, registers.address(Registers.STACK_POINTER_REGISTER));
+
+        registers.setStackPointer(0x0000_3000);
+        registers.setSupervisorStackActive(false);
+
+        assertEquals(0x0000_1000, registers.stackPointer());
+        assertEquals(0x0000_3000, registers.supervisorStackPointer());
+        assertEquals(0x0000_1000, registers.userStackPointer());
+    }
 }

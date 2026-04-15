@@ -777,6 +777,9 @@ public final class Decoder {
                 yield switch (sz) {
                     case 0b00 -> {
                         // NBCD — byte operation, no source EA
+                        if (mode == 0b001 || (mode == 0b111 && reg >= 0b010)) {
+                            throw new IllegalInstructionException(op, opAddr);
+                        }
                         EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
                         yield new DecodedInstruction(
                             Opcode.NBCD, Size.BYTE,
@@ -844,6 +847,9 @@ public final class Decoder {
                 if (sz == 0b11) {
                     // TAS — test-and-set; BYTE, atomic RMW on real hardware
                     EffectiveAddress dst = decodeEa(eaMode(op), regY(op), Size.BYTE, bus, cursor);
+                    if (!isDataAlterable(dst)) {
+                        throw new IllegalInstructionException(op, opAddr);
+                    }
                     yield new DecodedInstruction(
                         Opcode.TAS, Size.BYTE,
                         EffectiveAddress.none(), dst, 0, cursor[0]);
@@ -1181,20 +1187,45 @@ public final class Decoder {
      *
      * <p>For Scc/DBcc, bits 11:8 are the condition code. The DBcc form is the
      * special mode=001 slot and uses the low register field as a data register,
-     * not an address register. Those helpers are intentionally deferred, so this
-     * decoder now leaves that sub-space behind explicit guarded stubs.
+     * not an address register. DBcc always carries a signed 16-bit displacement
+     * extension word; Scc instead writes a conditional byte result to an alterable
+     * destination EA and carries the raw condition in the decoded extension field.
      */
     private DecodedInstruction decodeLine5(int op, Bus bus, int extPc) throws IllegalInstructionException {
-        int opwordAddr = extPc - 2;
         int sizeBits = sizeBits(op);
 
         if (sizeBits == 0b11) {
             if (eaMode(op) == 0b001) {
-                throw new UnsupportedOperationException("DBcc decode not implemented yet");
+                int[] cursor = {extPc};
+                return new DecodedInstruction(
+                    Opcode.DBcc,
+                    Size.UNSIZED,
+                    EffectiveAddress.immediate(readExtWord(bus, cursor)),
+                    EffectiveAddress.dataReg(regY(op)),
+                    condition(op),
+                    cursor[0]
+                );
             }
-            throw new UnsupportedOperationException("Scc decode not implemented yet");
+            int opwordAddr = extPc - 2;
+            int mode = eaMode(op);
+            int reg = regY(op);
+            if (mode == 0b111 && reg >= 0b010) {
+                throw new IllegalInstructionException(op, opwordAddr);
+            }
+
+            int[] cursor = {extPc};
+            EffectiveAddress dst = decodeEa(mode, reg, Size.BYTE, bus, cursor);
+            return new DecodedInstruction(
+                Opcode.Scc,
+                Size.BYTE,
+                EffectiveAddress.none(),
+                dst,
+                condition(op),
+                cursor[0]
+            );
         }
 
+        int opwordAddr = extPc - 2;
         Size size = decodeSize(sizeBits, op, opwordAddr);
         int mode = eaMode(op);
         int reg = regY(op);
@@ -1355,13 +1386,12 @@ public final class Decoder {
      * <p>No extension words are consumed — the trap vector is in the opword itself.
      */
     private DecodedInstruction decodeLineA(int op, int extPc) {
-        int trapVector = op & 0x0FFF;
         return new DecodedInstruction(
             Opcode.LINE_A_TRAP,
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            trapVector,
+            op & 0xFFFF,
             extPc   // no extension words consumed
         );
     }
@@ -1567,6 +1597,17 @@ public final class Decoder {
         };
     }
 
+    private static boolean isDataAlterable(EffectiveAddress operand) {
+        return operand instanceof EffectiveAddress.DataReg
+            || operand instanceof EffectiveAddress.AddrRegInd
+            || operand instanceof EffectiveAddress.AddrRegIndPostInc
+            || operand instanceof EffectiveAddress.AddrRegIndPreDec
+            || operand instanceof EffectiveAddress.AddrRegIndDisp
+            || operand instanceof EffectiveAddress.AddrRegIndIndex
+            || operand instanceof EffectiveAddress.AbsoluteShort
+            || operand instanceof EffectiveAddress.AbsoluteLong;
+    }
+
     private static DecodedInstruction decodeAddSubX(
         Opcode opcode, int op, int opwordAddr, int extPc) throws IllegalInstructionException {
 
@@ -1719,7 +1760,7 @@ public final class Decoder {
             Size.UNSIZED,
             EffectiveAddress.none(),
             EffectiveAddress.none(),
-            0,
+            op & 0xFFFF,
             extPc
         );
     }

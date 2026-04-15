@@ -23,29 +23,9 @@ public final class BccOp implements Op {
         EffectiveAddress.Immediate displacement = DispatchSupport.requireImmediateSource(decoded, "BCC");
         return Bcc.execute(
             decodeCondition(decoded.extension()),
-            cpu.registers().programCounter(),
+            DispatchSupport.branchBase(cpu, decoded.size()),
             displacement.value(),
-            new Bcc.ConditionCodesReader() {
-                @Override
-                public boolean isNegative() {
-                    return cpu.statusRegister().isNegativeSet();
-                }
-
-                @Override
-                public boolean isZero() {
-                    return cpu.statusRegister().isZeroSet();
-                }
-
-                @Override
-                public boolean isOverflow() {
-                    return cpu.statusRegister().isOverflowSet();
-                }
-
-                @Override
-                public boolean isCarry() {
-                    return cpu.statusRegister().isCarrySet();
-                }
-            },
+            DispatchSupport.conditionCodesReader(cpu),
             cpu.registers()::setProgramCounter
         );
     }

@@ -23,7 +23,7 @@ public final class BraOp implements Op {
 
         EffectiveAddress.Immediate displacement = DispatchSupport.requireImmediateSource(decoded, "BRA");
         return Bra.execute(
-            cpu.registers().programCounter(),
+            DispatchSupport.branchBase(cpu, decoded.size()),
             displacement.value(),
             cpu.registers()::setProgramCounter
         );

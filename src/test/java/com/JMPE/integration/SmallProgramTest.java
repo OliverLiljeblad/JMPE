@@ -2,15 +2,15 @@ package com.JMPE.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.JMPE.bus.Ram;
 import com.JMPE.cpu.m68k.Decoder;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
+import com.JMPE.cpu.m68k.exceptions.ExceptionVector;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
-import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.machine.MacPlusMachine;
 import org.junit.jupiter.api.Test;
@@ -24,6 +24,7 @@ class SmallProgramTest {
     private static final int INITIAL_PROGRAM_COUNTER = 0x0040_0100;
     private static final int INSTRUCTION_OFFSET = INITIAL_PROGRAM_COUNTER - ROM_BASE;
     private static final int NOP = 0x4E71;
+    private static final int STOP = 0x4E72;
     private static final int CLR_B_D0 = 0x4200;
     private static final int CLR_BYTE_INITIAL = 0x1234_5678;
     private static final int CLR_BYTE_RESULT = 0x1234_5600;
@@ -64,6 +65,10 @@ class SmallProgramTest {
     private static final int CMPI_BYTE_IMMEDIATE = 0x0001;
     private static final int CMPI_BYTE_INITIAL = 0x1234_5600;
     private static final int TST_B_D0 = 0x4A00;
+    private static final int TST_W_A0 = 0x4A50;
+    private static final int VIA_IER_ADDRESS = 0x00E8_1C00;
+    private static final int GROUP0_SSW_SUPERVISOR_PROGRAM_READ = 0x0016;
+    private static final int GROUP0_SSW_SUPERVISOR_DATA_READ = 0x001D;
     private static final int TEN_INSTRUCTION_PROGRAM_INITIAL_SR = 0x271F;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_D0 = 0x1234_5600;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_SR = 0x2010;
@@ -386,24 +391,30 @@ class SmallProgramTest {
     }
 
     @Test
-    void rejectsAndiToSrInUserModeThroughMachineLayer() {
+    void vectorsPrivilegeViolationForAndiToSrInUserModeThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.PRIVILEGE_VIOLATION.vectorAddress(), 0x0000_0400);
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(
                 romBytesWithInstructionWords(ANDI_TO_SR, ANDI_TO_SR_IMMEDIATE),
-                ROM_BASE
+                ROM_BASE,
+                lowMemory
         );
         configureAndiToSrUserModeScenario(machine.cpu());
         List<String> logs = new ArrayList<>();
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> machine.step(logs::add)
-        );
+        M68kCpu.StepReport report = machine.step(logs::add);
 
-        assertEquals("ANDI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
-        assertEquals(ANDI_TO_SR_USER_MODE_SR, machine.cpu().statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x271F, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 6, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(ANDI_TO_SR_USER_MODE_SR, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=ANDI_TO_SR"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ANDI_TO_SR"));
     }
 
     @Test
@@ -603,24 +614,30 @@ class SmallProgramTest {
     }
 
     @Test
-    void rejectsEoriToSrInUserModeThroughMachineLayer() {
+    void vectorsPrivilegeViolationForEoriToSrInUserModeThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.PRIVILEGE_VIOLATION.vectorAddress(), 0x0000_0400);
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(
                 romBytesWithInstructionWords(EORI_TO_SR, EORI_TO_SR_IMMEDIATE),
-                ROM_BASE
+                ROM_BASE,
+                lowMemory
         );
         configureEoriToSrUserModeScenario(machine.cpu());
         List<String> logs = new ArrayList<>();
 
-        PrivilegeViolation thrown = assertThrows(
-                PrivilegeViolation.class,
-                () -> machine.step(logs::add)
-        );
+        M68kCpu.StepReport report = machine.step(logs::add);
 
-        assertEquals("EORI to SR requires supervisor mode", thrown.getMessage());
-        assertEquals(INITIAL_PROGRAM_COUNTER + 4, machine.cpu().registers().programCounter());
-        assertEquals(EORI_TO_SR_USER_MODE_SR, machine.cpu().statusRegister().rawValue());
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x271F, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 6, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(EORI_TO_SR_USER_MODE_SR, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
         assertEquals(1, logs.size());
-        assertTrue(logs.get(0).contains("[m68k-step] ERR op=EORI_TO_SR"));
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=EORI_TO_SR"));
     }
 
     @Test
@@ -764,6 +781,99 @@ class SmallProgramTest {
         assertTrue(report.success());
         assertEquals(INITIAL_PROGRAM_COUNTER + 2, machine.cpu().registers().programCounter());
         assertEquals(4, report.cycles());
+    }
+
+    @Test
+    void vectorsAddressErrorForOddOpcodeFetchThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.ADDRESS_ERROR.vectorAddress(), 0x0000_0400);
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithResetVectors(INITIAL_STACK_POINTER, INITIAL_PROGRAM_COUNTER + 1, NOP),
+            ROM_BASE,
+            lowMemory
+        );
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_PROGRAM_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
+        assertEquals(0x0000, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
+        assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 1, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=ADDRESS_ERROR"));
+    }
+
+    @Test
+    void vectorsBusErrorForUnmappedDataReadThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.BUS_ERROR.vectorAddress(), 0x0000_0400);
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithSingleInstruction(TST_W_A0),
+            ROM_BASE,
+            lowMemory
+        );
+        machine.cpu().registers().setAddress(0, 0x0050_0000);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport report = machine.step(logs::add);
+
+        assertTrue(report.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, report.before().programCounter());
+        assertEquals(0x0000_0400, report.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(GROUP0_SSW_SUPERVISOR_DATA_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(0x0050_0000, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
+        assertEquals(TST_W_A0, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
+        assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 2, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(0, report.cycles());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+    }
+
+    @Test
+    void takesViaInterruptAndWakesStoppedCpuThroughMachineLayer() throws IllegalInstructionException {
+        Ram lowMemory = new Ram(0x0000_0000, 0x4000);
+        lowMemory.writeLong(ExceptionVector.interruptAutovectorNumber(1) * 4, 0x0000_0400);
+        MacPlusMachine machine = MacPlusMachine.fromRomBytes(
+            romBytesWithInstructionWords(STOP, 0x2000, NOP),
+            ROM_BASE,
+            lowMemory
+        );
+        machine.bus().writeByte(VIA_IER_ADDRESS, 0x82);
+        List<String> logs = new ArrayList<>();
+
+        M68kCpu.StepReport first = machine.step(logs::add);
+        M68kCpu.StepReport second = machine.step(logs::add);
+
+        assertTrue(first.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER, first.before().programCounter());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, first.after().programCounter());
+        assertEquals(4, first.cycles());
+        assertTrue(second.success());
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, second.before().programCounter());
+        assertEquals(0x0000_0400, second.after().programCounter());
+        assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
+        assertFalse(machine.cpu().isStopped());
+        assertEquals(0x2100, machine.cpu().statusRegister().rawValue());
+        assertEquals(INITIAL_STACK_POINTER - 6, machine.cpu().registers().supervisorStackPointer());
+        assertEquals(0x2000, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
+        assertEquals(INITIAL_PROGRAM_COUNTER + 4, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(44, second.cycles());
+        assertEquals(2, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=STOP"));
+        assertTrue(logs.get(1).contains("[m68k-step] OK op=INTERRUPT_LEVEL_1"));
     }
 
     @Test
@@ -943,25 +1053,30 @@ class SmallProgramTest {
     }
 
     private static byte[] romBytesWithInstructionWords(int... words) {
+        return romBytesWithResetVectors(INITIAL_STACK_POINTER, INITIAL_PROGRAM_COUNTER, words);
+    }
+
+    private static byte[] romBytesWithResetVectors(int initialStackPointer, int initialProgramCounter, int... words) {
         byte[] bytes = new byte[0x0200];
+        int programOffset = initialProgramCounter - ROM_BASE;
 
-        bytes[0] = 0x00;
-        bytes[1] = 0x00;
-        bytes[2] = 0x20;
-        bytes[3] = 0x00;
-
-        bytes[4] = 0x00;
-        bytes[5] = 0x40;
-        bytes[6] = 0x01;
-        bytes[7] = 0x00;
+        writeLong(bytes, 0x0000, initialStackPointer);
+        writeLong(bytes, 0x0004, initialProgramCounter);
 
         for (int index = 0; index < words.length; index++) {
             int word = words[index];
-            int offset = INSTRUCTION_OFFSET + (index * 2);
+            int offset = programOffset + (index * 2);
             bytes[offset] = (byte) ((word >>> 8) & 0xFF);
             bytes[offset + 1] = (byte) (word & 0xFF);
         }
         return bytes;
+    }
+
+    private static void writeLong(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value >>> 24);
+        target[offset + 1] = (byte) (value >>> 16);
+        target[offset + 2] = (byte) (value >>> 8);
+        target[offset + 3] = (byte) value;
     }
 
     private static void configureTstScenario(M68kCpu cpu) {

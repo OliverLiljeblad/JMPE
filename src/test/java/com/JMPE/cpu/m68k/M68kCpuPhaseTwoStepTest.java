@@ -77,7 +77,7 @@ class M68kCpuPhaseTwoStepTest {
 
         M68kCpu.StepReport report = cpu.step(bus, new DispatchTable());
 
-        assertEquals(0x1008, cpu.registers().programCounter());
+        assertEquals(0x1006, cpu.registers().programCounter());
         assertEquals(0x10FC, cpu.registers().stackPointer());
         assertEquals(0x0000_1004, bus.readLong(0x10FC));
         assertTrue(report.success());
