@@ -5,11 +5,14 @@ import com.JMPE.bus.Rom;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.dispatch.Op;
 import com.JMPE.cpu.m68k.exceptions.ExceptionDispatcher;
+import com.JMPE.cpu.m68k.exceptions.ExceptionFrameKind;
 import com.JMPE.cpu.m68k.exceptions.Group0Fault;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.machine.Interrupts;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -23,6 +26,7 @@ public final class M68kCpu {
 
     private final Registers registers;
     private final StatusRegister statusRegister;
+    private final Deque<ExceptionFrameKind> exceptionFrames = new ArrayDeque<>();
     private boolean stopped;
 
     private enum Group0AccessPhase {
@@ -90,6 +94,7 @@ public final class M68kCpu {
         statusRegister.setInterruptMask(RESET_INTERRUPT_MASK);
         registers.setSupervisorStackPointer(rom.initialSupervisorStackPointer());
         registers.setProgramCounter(rom.initialProgramCounter());
+        clearExceptionFrames();
         stopped = false;
     }
 
@@ -240,6 +245,19 @@ public final class M68kCpu {
                                             DispatchTable dispatchTable,
                                             Interrupts interrupts) throws IllegalInstructionException {
         return step(bus, dispatchTable, interrupts, System.out::println);
+    }
+
+    public void recordExceptionFrame(ExceptionFrameKind frameKind) {
+        exceptionFrames.addLast(Objects.requireNonNull(frameKind, "frameKind must not be null"));
+    }
+
+    public ExceptionFrameKind consumeExceptionFrameOrDefault(ExceptionFrameKind defaultFrameKind) {
+        Objects.requireNonNull(defaultFrameKind, "defaultFrameKind must not be null");
+        return exceptionFrames.isEmpty() ? defaultFrameKind : exceptionFrames.removeLast();
+    }
+
+    public void clearExceptionFrames() {
+        exceptionFrames.clear();
     }
 
     /**

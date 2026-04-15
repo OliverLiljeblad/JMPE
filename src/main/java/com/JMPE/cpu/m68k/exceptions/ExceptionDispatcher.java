@@ -94,6 +94,7 @@ public final class ExceptionDispatcher {
         );
 
         cpu.registers().setProgramCounter(bus.readLong(fault.exceptionVector().vectorAddress()));
+        cpu.recordExceptionFrame(ExceptionFrameKind.GROUP_0);
     }
 
     public static void dispatchInterruptAutovector(M68kCpu cpu, Bus bus, int interruptLevel) {
@@ -121,6 +122,7 @@ public final class ExceptionDispatcher {
         bus.writeWord(stackPointer, savedStatusRegister);
 
         cpu.registers().setProgramCounter(bus.readLong(ExceptionVector.interruptAutovectorNumber(interruptLevel) * 4));
+        cpu.recordExceptionFrame(ExceptionFrameKind.SIX_BYTE_SIMPLE);
     }
 
     private static void dispatchSimpleFrame(M68kCpu cpu, Bus bus, int vectorNumber) {
@@ -141,6 +143,7 @@ public final class ExceptionDispatcher {
         bus.writeWord(stackPointer, savedStatusRegister);
 
         cpu.registers().setProgramCounter(bus.readLong(vectorNumber * 4));
+        cpu.recordExceptionFrame(ExceptionFrameKind.SIX_BYTE_SIMPLE);
     }
 
     private static int buildGroup0StatusWord(FaultAccessType accessType,

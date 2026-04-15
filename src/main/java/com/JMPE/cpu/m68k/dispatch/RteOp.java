@@ -2,6 +2,7 @@ package com.JMPE.cpu.m68k.dispatch;
 
 import com.JMPE.bus.Bus;
 import com.JMPE.cpu.m68k.M68kCpu;
+import com.JMPE.cpu.m68k.exceptions.ExceptionFrameKind;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
 
@@ -24,9 +25,22 @@ public final class RteOp implements Op {
         DispatchSupport.requireSupervisor(cpu, "RTE");
 
         int supervisorStackPointer = cpu.registers().supervisorStackPointer();
-        int restoredStatusRegister = bus.readWord(supervisorStackPointer);
-        int restoredProgramCounter = bus.readLong(supervisorStackPointer + 2);
-        cpu.registers().setSupervisorStackPointer(supervisorStackPointer + 6);
+        ExceptionFrameKind frameKind = cpu.consumeExceptionFrameOrDefault(ExceptionFrameKind.SIX_BYTE_SIMPLE);
+        int restoredStatusRegister;
+        int restoredProgramCounter;
+        int restoredSupervisorStackPointer;
+
+        if (frameKind == ExceptionFrameKind.GROUP_0) {
+            restoredStatusRegister = bus.readWord(supervisorStackPointer + 8);
+            restoredProgramCounter = bus.readLong(supervisorStackPointer + 10);
+            restoredSupervisorStackPointer = supervisorStackPointer + 14;
+        } else {
+            restoredStatusRegister = bus.readWord(supervisorStackPointer);
+            restoredProgramCounter = bus.readLong(supervisorStackPointer + 2);
+            restoredSupervisorStackPointer = supervisorStackPointer + 6;
+        }
+
+        cpu.registers().setSupervisorStackPointer(restoredSupervisorStackPointer);
         cpu.statusRegister().setRawValue(restoredStatusRegister);
         cpu.registers().setProgramCounter(restoredProgramCounter);
         return EXECUTION_CYCLES;

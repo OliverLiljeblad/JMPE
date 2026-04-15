@@ -11,6 +11,7 @@ import com.JMPE.bus.Ram;
 import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.exceptions.ExceptionFrameKind;
 import com.JMPE.cpu.m68k.exceptions.ExceptionVector;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
@@ -112,6 +113,31 @@ class SystemTrapOpTest {
             () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
             () -> assertEquals(0x0015, cpu.statusRegister().rawValue()),
             () -> assertEquals(0x0000_2006, cpu.registers().supervisorStackPointer()),
+            () -> assertEquals(0x0000_3000, cpu.registers().stackPointer())
+        );
+    }
+
+    @Test
+    void rteOpRestoresGroup0ExceptionFrameAndReturnsToUserStack() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.recordExceptionFrame(ExceptionFrameKind.GROUP_0);
+        cpu.registers().setUserStackPointer(0x0000_3000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.statusRegister().setRawValue(0x2700);
+        bus.writeWord(0x0000_2000, 0x0019);
+        bus.writeLong(0x0000_2002, 0x0000_1235);
+        bus.writeWord(0x0000_2006, 0x4A50);
+        bus.writeWord(0x0000_2008, 0x0015);
+        bus.writeLong(0x0000_200A, 0x0000_1234);
+
+        int cycles = new RteOp().execute(cpu, bus, decoded(Opcode.RTE, 0));
+
+        assertAll(
+            () -> assertEquals(RteOp.EXECUTION_CYCLES, cycles),
+            () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
+            () -> assertEquals(0x0015, cpu.statusRegister().rawValue()),
+            () -> assertEquals(0x0000_200E, cpu.registers().supervisorStackPointer()),
             () -> assertEquals(0x0000_3000, cpu.registers().stackPointer())
         );
     }

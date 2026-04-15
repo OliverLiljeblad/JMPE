@@ -1527,6 +1527,37 @@ class M68kCpuStepTest {
     }
 
     @Test
+    void stepRestoresStateForRteAfterGroup0AddressErrorFrame() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(0, 0x0000_1235);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x0015);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, TST_W_A0);
+        bus.writeWord(0x0000_1234, RTE);
+
+        M68kCpu.StepReport exceptionReport = cpu.step(bus, new DispatchTable(), logs::add);
+        M68kCpu.StepReport rteReport = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(exceptionReport.success());
+        assertTrue(rteReport.success());
+        assertEquals(0x0000_1234, exceptionReport.after().programCounter());
+        assertEquals(0x0000_1002, rteReport.after().programCounter());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertEquals(0x0015, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER, cpu.registers().supervisorStackPointer());
+        assertEquals(TEST_USER_STACK_POINTER, cpu.registers().stackPointer());
+        assertEquals(RteOp.EXECUTION_CYCLES, rteReport.cycles());
+        assertEquals(2, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));
+        assertTrue(logs.get(1).contains("[m68k-step] OK op=RTE"));
+        assertTrue(logs.get(1).contains("pc=0x00001234->0x00001002"));
+    }
+
+    @Test
     void stepFetchesDecodesDispatchesAndRestoresConditionCodesForRtr() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
