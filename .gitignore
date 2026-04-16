@@ -26,6 +26,9 @@ target/
 .DS_Store
 Thumbs.db
 
+# Working notes
+cleanup-context/
+
 # ROM and disk images
 roms/*
 !roms/.gitkeep
