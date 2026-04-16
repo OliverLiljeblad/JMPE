@@ -59,8 +59,8 @@ public final class Move {
         }
 
         int maskedResult = size.mask(sourceValue);
-        destinationWriter.accept(maskedResult);
         updateConditionCodes(maskedResult, size, conditionCodes);
+        destinationWriter.accept(maskedResult);
         return cycles;
     }
 

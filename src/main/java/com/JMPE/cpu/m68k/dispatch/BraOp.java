@@ -25,7 +25,7 @@ public final class BraOp implements Op {
         return Bra.execute(
             DispatchSupport.branchBase(cpu, decoded.size()),
             displacement.value(),
-            cpu.registers()::setProgramCounter
+            DispatchSupport.controlTransferPcWriter(cpu)
         );
     }
 

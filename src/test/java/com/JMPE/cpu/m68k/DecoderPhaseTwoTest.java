@@ -317,8 +317,37 @@ class DecoderPhaseTwoTest {
     }
 
     @Test
-    void rejectsLongBranchSentinelOn68000() {
-        assertThrows(IllegalInstructionException.class, () -> decoder.decode(0x60FF, null, EXTENSION_PC));
+    void decodesBraWithNegativeOneByteDisplacement() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x60FF, null, EXTENSION_PC);
+
+        assertEquals(Opcode.BRA, decoded.opcode());
+        assertEquals(Size.BYTE, decoded.size());
+        assertEquals(EffectiveAddress.immediate(-1), decoded.src());
+        assertEquals(EffectiveAddress.none(), decoded.dst());
+        assertEquals(EXTENSION_PC, decoded.nextPc());
+    }
+
+    @Test
+    void decodesBsrWithNegativeOneByteDisplacement() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x61FF, null, EXTENSION_PC);
+
+        assertEquals(Opcode.BSR, decoded.opcode());
+        assertEquals(Size.BYTE, decoded.size());
+        assertEquals(EffectiveAddress.immediate(-1), decoded.src());
+        assertEquals(EffectiveAddress.none(), decoded.dst());
+        assertEquals(EXTENSION_PC, decoded.nextPc());
+    }
+
+    @Test
+    void decodesBhiWithNegativeOneByteDisplacementAsGenericBcc() throws IllegalInstructionException {
+        DecodedInstruction decoded = decoder.decode(0x62FF, null, EXTENSION_PC);
+
+        assertEquals(Opcode.BCC, decoded.opcode());
+        assertEquals(Size.BYTE, decoded.size());
+        assertEquals(EffectiveAddress.immediate(-1), decoded.src());
+        assertEquals(EffectiveAddress.none(), decoded.dst());
+        assertEquals(0x2, decoded.extension());
+        assertEquals(EXTENSION_PC, decoded.nextPc());
     }
 
     private static AddressSpace busWithWords(int baseAddress, int... words) {

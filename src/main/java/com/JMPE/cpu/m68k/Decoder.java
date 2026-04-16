@@ -1261,8 +1261,9 @@ public final class Decoder {
      * <p>Bits 11:8 encode the condition (0000 = BRA, 0001 = BSR, others = Bcc).
      * The displacement is in the low byte of the opword; if it is $00 the
      * displacement is a full signed 16-bit word in the next extension word.
-     * If it is $FF (MC68020+), it is a 32-bit displacement — the 68000 used
-     * only in the Mac Plus does not support this, so treat $FF as illegal.
+     * On the 68000 every non-zero low byte is still a normal signed 8-bit
+     * displacement, including $FF which means -1. The long-displacement
+     * sentinel was added on later 68k parts and does not apply here.
      *
      * <p>This is a good example of why the Decoder must read extension words:
      * the branch target cannot be known without consuming the displacement word
@@ -1279,9 +1280,6 @@ public final class Decoder {
             displacementSize = Size.WORD;
             displacement = readExtWord(bus, cursor);
         } else {
-            if (displacementByte == 0xFF) {
-                throw new IllegalInstructionException(op, opwordAddr);
-            }
             displacementSize = Size.BYTE;
             displacement = (byte) displacementByte;
         }

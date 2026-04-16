@@ -29,7 +29,7 @@ public final class DbccOp implements Op {
             () -> cpu.registers().data(counterRegister),
             value -> cpu.registers().setData(counterRegister, value),
             DispatchSupport.conditionCodesReader(cpu),
-            cpu.registers()::setProgramCounter
+            DispatchSupport.controlTransferPcWriter(cpu)
         );
     }
 }
