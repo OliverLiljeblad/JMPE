@@ -1174,9 +1174,9 @@ class M68kCpuStepTest {
         assertEquals(0x0000_1000, report.before().programCounter());
         assertEquals(0x0000_1002, report.after().programCounter());
         assertEquals(0x1234_0000, cpu.registers().data(2));
-        assertTrue(cpu.statusRegister().isNegativeSet());
+        assertFalse(cpu.statusRegister().isNegativeSet());
         assertTrue(cpu.statusRegister().isZeroSet());
-        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
         assertTrue(cpu.statusRegister().isCarrySet());
         assertTrue(cpu.statusRegister().isExtendSet());
         assertEquals(Abcd.EXECUTION_CYCLES, report.cycles());
@@ -1204,7 +1204,7 @@ class M68kCpuStepTest {
         assertEquals(0x1234_0099, cpu.registers().data(2));
         assertTrue(cpu.statusRegister().isNegativeSet());
         assertFalse(cpu.statusRegister().isZeroSet());
-        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
         assertTrue(cpu.statusRegister().isCarrySet());
         assertTrue(cpu.statusRegister().isExtendSet());
         assertEquals(Sbcd.EXECUTION_CYCLES, report.cycles());
@@ -1231,7 +1231,7 @@ class M68kCpuStepTest {
         assertEquals(0x1234_0099, cpu.registers().data(0));
         assertTrue(cpu.statusRegister().isNegativeSet());
         assertFalse(cpu.statusRegister().isZeroSet());
-        assertTrue(cpu.statusRegister().isOverflowSet());
+        assertFalse(cpu.statusRegister().isOverflowSet());
         assertTrue(cpu.statusRegister().isCarrySet());
         assertTrue(cpu.statusRegister().isExtendSet());
         assertEquals(Nbcd.EXECUTION_CYCLES, report.cycles());

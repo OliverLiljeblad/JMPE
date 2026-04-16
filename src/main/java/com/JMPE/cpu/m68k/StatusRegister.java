@@ -357,6 +357,16 @@ public final class StatusRegister {
         }
 
         @Override
+        public void setNegative(boolean value) {
+            StatusRegister.this.setNegative(value);
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            StatusRegister.this.setOverflow(value);
+        }
+
+        @Override
         public void setCarry(boolean value) {
             StatusRegister.this.setCarry(value);
         }

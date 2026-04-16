@@ -25,6 +25,8 @@ public final class Nbcd {
 
     public interface ConditionCodes {
         void clearZero();
+        void setNegative(boolean value);
+        void setOverflow(boolean value);
         void setCarry(boolean value);
         void setExtend(boolean value);
     }
@@ -47,10 +49,13 @@ public final class Nbcd {
             0,
             extendSet
         );
-        destinationWriter.write(result.value());
-        if (result.value() != 0) {
+        int value = result.value();
+        destinationWriter.write(value);
+        if (value != 0) {
             conditionCodes.clearZero();
         }
+        conditionCodes.setNegative((value & 0x80) != 0);
+        conditionCodes.setOverflow(result.overflow());
         conditionCodes.setCarry(result.carry());
         conditionCodes.setExtend(result.carry());
         return EXECUTION_CYCLES;

@@ -23,6 +23,8 @@ class Sbcd_Test {
             () -> assertEquals(Sbcd.EXECUTION_CYCLES, cycles),
             () -> assertEquals(0x99, writtenValue.get()),
             () -> assertTrue(conditionCodes.zeroCleared),
+            () -> assertTrue(conditionCodes.negative),
+            () -> assertFalse(conditionCodes.overflow),
             () -> assertTrue(conditionCodes.carry),
             () -> assertTrue(conditionCodes.extend)
         );
@@ -38,8 +40,27 @@ class Sbcd_Test {
         assertAll(
             () -> assertEquals(0x00, writtenValue.get()),
             () -> assertFalse(conditionCodes.zeroCleared),
+            () -> assertFalse(conditionCodes.negative),
+            () -> assertFalse(conditionCodes.overflow),
             () -> assertFalse(conditionCodes.carry),
             () -> assertFalse(conditionCodes.extend)
+        );
+    }
+
+    @Test
+    void executeUses68000DecimalCorrectionForInvalidDigits() {
+        AtomicInteger writtenValue = new AtomicInteger(-1);
+        TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
+
+        Sbcd.execute(Size.BYTE, () -> 0x9F, () -> 0x37, writtenValue::set, true, conditionCodes);
+
+        assertAll(
+            () -> assertEquals(0x31, writtenValue.get()),
+            () -> assertTrue(conditionCodes.zeroCleared),
+            () -> assertFalse(conditionCodes.negative),
+            () -> assertTrue(conditionCodes.overflow),
+            () -> assertTrue(conditionCodes.carry),
+            () -> assertTrue(conditionCodes.extend)
         );
     }
 
@@ -64,12 +85,24 @@ class Sbcd_Test {
 
     private static final class TrackingConditionCodes implements Sbcd.ConditionCodes {
         private boolean zeroCleared;
+        private boolean negative;
+        private boolean overflow;
         private boolean carry;
         private boolean extend;
 
         @Override
         public void clearZero() {
             zeroCleared = true;
+        }
+
+        @Override
+        public void setNegative(boolean value) {
+            negative = value;
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            overflow = value;
         }
 
         @Override
