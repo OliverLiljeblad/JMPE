@@ -76,9 +76,8 @@ public final class OperandResolver {
 
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
-                int val = busRead(bus, addr, size);
                 regs.setAddress(reg, addr + increment(reg, size));
-                yield val;
+                yield busRead(bus, addr, size);
             }
 
             case EffectiveAddress.AddrRegIndPreDec(int reg) -> {
@@ -147,8 +146,8 @@ public final class OperandResolver {
 
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
-                busWrite(bus, addr, size, value);
                 regs.setAddress(reg, addr + increment(reg, size));
+                busWrite(bus, addr, size, value);
             }
 
             case EffectiveAddress.AddrRegIndPreDec(int reg) -> {
@@ -227,11 +226,11 @@ public final class OperandResolver {
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
                 int inc = increment(reg, size);
+                regs.setAddress(reg, addr + inc);
                 yield new Location() {
                     @Override public int read() { return busRead(bus, addr, size); }
                     @Override public void write(int value) {
                         busWrite(bus, addr, size, value);
-                        regs.setAddress(reg, addr + inc);
                     }
                 };
             }

@@ -329,19 +329,19 @@ class OperandResolverTest {
         }
 
         @Test
-        void postIncrementAppliedOnWrite() {
+        void postIncrementAppliedAtResolve() {
             cpu.registers().setAddress(1, 0x0000_0200);
             bus.writeWord(0x200, 0x1234);
             OperandResolver.Location loc = OperandResolver.resolveLocation(
                     EffectiveAddress.addrRegIndPostInc(1), cpu, bus, Size.WORD);
 
-            // After resolveLocation, A1 should NOT yet be incremented
-            assertEquals(0x0000_0200, cpu.registers().address(1));
+            // After resolveLocation, A1 should already be incremented (pre-committed)
+            assertEquals(0x0000_0202, cpu.registers().address(1));
             assertEquals(0x1234, loc.read());
-            // Still not incremented after read
-            assertEquals(0x0000_0200, cpu.registers().address(1));
+            // Still incremented after read
+            assertEquals(0x0000_0202, cpu.registers().address(1));
             loc.write(0x5678);
-            // NOW A1 should be incremented
+            // A1 remains at incremented value
             assertEquals(0x0000_0202, cpu.registers().address(1));
             assertEquals(0x5678, bus.readWord(0x200));
         }

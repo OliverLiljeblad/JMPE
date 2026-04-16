@@ -49,11 +49,11 @@ public final class StatusRegister {
     }
 
     public int conditionCodeRegister() {
-        return rawValue() & 0xFF;
+        return rawValue() & 0x1F;
     }
 
     public void setConditionCodeRegister(int ccr) {
-        value = (rawValue() & 0xFF00) | (ccr & 0xFF);
+        value = (rawValue() & 0xFF00) | (ccr & 0x1F);
     }
 
     public int interruptMask() {
