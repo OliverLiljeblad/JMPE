@@ -21,13 +21,22 @@ public final class Rom implements MemoryRegion {
 
     private final int base;
     private final byte[] bytes;
+    private final int apertureSize;
 
     public Rom(int base, byte[] bytes) {
+        this(base, bytes, bytes == null ? 0 : bytes.length);
+    }
+
+    public Rom(int base, byte[] bytes, int apertureSize) {
         if (bytes == null || bytes.length == 0) {
             throw new IllegalArgumentException("ROM bytes must not be null or empty");
         }
+        if (apertureSize < bytes.length) {
+            throw new IllegalArgumentException("aperture must be at least as large as the backing data");
+        }
         this.base = base;
         this.bytes = Arrays.copyOf(bytes, bytes.length);
+        this.apertureSize = apertureSize;
     }
 
     @Override
@@ -35,13 +44,18 @@ public final class Rom implements MemoryRegion {
         return base;
     }
 
+    @Override
     public int size() {
+        return apertureSize;
+    }
+
+    public int backingSize() {
         return bytes.length;
     }
 
     public boolean contains(int address) {
         long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(base);
-        return offset >= 0 && offset < bytes.length;
+        return offset >= 0 && offset < apertureSize;
     }
 
     @Override
