@@ -44,6 +44,7 @@ public final class Via6522 {
     }
 
     public int readRegister(int register) {
+        register = viaRegister(register);
         return switch (normalize(register)) {
             case ORB -> orb;
             case ORA, ORA_NO_HANDSHAKE -> ora;
@@ -56,7 +57,7 @@ public final class Via6522 {
     }
 
     public void writeRegister(int register, int value) {
-        int normalized = normalize(register);
+        int normalized = normalize(viaRegister(register));
         int byteValue = value & 0xFF;
 
         switch (normalized) {
@@ -124,6 +125,10 @@ public final class Via6522 {
     private void updatePortA() {
         int effectivePortA = (ora & ddra) | (~ddra & 0xFF);
         portAListener.accept(effectivePortA);
+    }
+
+    private static int viaRegister(int offset) {
+        return (offset >>> 9) & 0x0F;
     }
 
     private static int normalize(int register) {

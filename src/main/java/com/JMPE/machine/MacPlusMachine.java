@@ -107,7 +107,6 @@ public final class MacPlusMachine {
         this.bus.addRegion(Mmio.openBus(SCSI_BASE, SCSI_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_READ_BASE, DEVICE_WINDOW_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_WRITE_BASE, DEVICE_WINDOW_SIZE));
-        this.bus.addRegion(viaMmio(via));
 
         Iwm iwm = new Iwm();
         this.bus.addRegion(Mmio.readWrite(IWM_BASE, DEVICE_WINDOW_SIZE,
@@ -115,6 +114,12 @@ public final class MacPlusMachine {
             iwm::accessAndWrite
         ));
 
+        this.bus.addRegion(Mmio.readWrite(
+            VIA_BASE,
+            VIA_SIZE,
+            via::readRegister,
+            via::writeRegister
+        ));
 
         this.bus.addRegion(Mmio.openBus(OPEN_BUS_BASE, OPEN_BUS_SIZE));
         this.cpu.resetFromRom(rom);
@@ -165,18 +170,5 @@ public final class MacPlusMachine {
             return new Rom(rom.base(), rom.copyBytes(), MAC_PLUS_ROM_APERTURE_SIZE);
         }
         return rom;
-    }
-
-    private static Mmio viaMmio(Via6522 via) {
-        return Mmio.readWrite(
-            VIA_BASE,
-            VIA_SIZE,
-            offset -> via.readRegister(viaRegister(offset)),
-            (offset, value) -> via.writeRegister(viaRegister(offset), value)
-        );
-    }
-
-    private static int viaRegister(int offset) {
-        return (offset >>> 9) & 0x0F;
     }
 }
