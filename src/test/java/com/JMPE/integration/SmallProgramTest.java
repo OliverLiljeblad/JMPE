@@ -67,8 +67,8 @@ class SmallProgramTest {
     private static final int TST_B_D0 = 0x4A00;
     private static final int TST_W_A0 = 0x4A50;
     private static final int VIA_IER_ADDRESS = 0x00E8_1C00;
-    private static final int GROUP0_SSW_SUPERVISOR_PROGRAM_READ = 0x0016;
-    private static final int GROUP0_SSW_SUPERVISOR_DATA_READ = 0x001D;
+    private static final int GROUP0_FRAME_WORD_SUPERVISOR_PROGRAM_READ = 0x001E;
+    private static final int GROUP0_FRAME_WORD_TST_SUPERVISOR_DATA_READ = 0x4A55;
     private static final int TEN_INSTRUCTION_PROGRAM_INITIAL_SR = 0x271F;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_D0 = 0x1234_5600;
     private static final int TEN_INSTRUCTION_PROGRAM_FINAL_SR = 0x2010;
@@ -802,7 +802,7 @@ class SmallProgramTest {
         assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
         assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
         assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
-        assertEquals(GROUP0_SSW_SUPERVISOR_PROGRAM_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(GROUP0_FRAME_WORD_SUPERVISOR_PROGRAM_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
         assertEquals(INITIAL_PROGRAM_COUNTER + 1, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
         assertEquals(0x0000, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
         assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
@@ -832,11 +832,11 @@ class SmallProgramTest {
         assertEquals(0x0000_0400, machine.cpu().registers().programCounter());
         assertEquals(0x2700, machine.cpu().statusRegister().rawValue());
         assertEquals(INITIAL_STACK_POINTER - 14, machine.cpu().registers().supervisorStackPointer());
-        assertEquals(GROUP0_SSW_SUPERVISOR_DATA_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
+        assertEquals(GROUP0_FRAME_WORD_TST_SUPERVISOR_DATA_READ, lowMemory.readWord(INITIAL_STACK_POINTER - 14));
         assertEquals(0x0050_0000, lowMemory.readLong(INITIAL_STACK_POINTER - 12));
         assertEquals(TST_W_A0, lowMemory.readWord(INITIAL_STACK_POINTER - 8));
         assertEquals(0x2700, lowMemory.readWord(INITIAL_STACK_POINTER - 6));
-        assertEquals(INITIAL_PROGRAM_COUNTER + 2, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
+        assertEquals(INITIAL_PROGRAM_COUNTER, lowMemory.readLong(INITIAL_STACK_POINTER - 4));
         assertEquals(0, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=TST"));

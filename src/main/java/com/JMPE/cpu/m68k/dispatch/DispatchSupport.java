@@ -5,9 +5,11 @@ import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.Registers;
 import com.JMPE.cpu.m68k.Size;
+import com.JMPE.cpu.m68k.exceptions.ProgramCounterAddressErrorException;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
+import com.JMPE.cpu.m68k.instructions.common.PcWriter;
 import com.JMPE.cpu.m68k.instructions.control.Bcc;
 import com.JMPE.cpu.m68k.instructions.data.Move;
 import com.JMPE.cpu.m68k.instructions.data.Movem;
@@ -249,6 +251,23 @@ final class DispatchSupport {
             default -> throw new IllegalArgumentException(
                 "Branch displacement size must be BYTE or WORD but was " + displacementSize);
         };
+    }
+
+    static PcWriter controlTransferPcWriter(M68kCpu cpu) {
+        Objects.requireNonNull(cpu, "cpu must not be null");
+
+        return newPc -> {
+            if ((newPc & 1) != 0) {
+                throw new ProgramCounterAddressErrorException(newPc);
+            }
+            cpu.registers().setProgramCounter(newPc);
+        };
+    }
+
+    static void validateControlTransferTarget(int targetAddress) {
+        if ((targetAddress & 1) != 0) {
+            throw new ProgramCounterAddressErrorException(targetAddress);
+        }
     }
 
     static Bcc.ConditionCodesReader conditionCodesReader(M68kCpu cpu) {

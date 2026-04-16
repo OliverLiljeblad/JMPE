@@ -26,6 +26,7 @@ public final class MovemMemToRegOp implements Op {
         int startAddress = DispatchSupport.movemStartAddress(decoded.src(), cpu, decoded.size(), registerCount);
         int effectiveAddressRegister = DispatchSupport.movemEffectiveAddressRegister(decoded.src());
         Movem.AddressingMode addressingMode = DispatchSupport.movemAddressingMode(decoded.src());
+        DispatchSupport.applyMovemWriteback(decoded.src(), cpu, startAddress, decoded.size(), registerCount);
         int cycles = Movem.executeMemoryToRegisters(
             decoded.size(),
             addressingMode,
@@ -39,7 +40,6 @@ public final class MovemMemToRegOp implements Op {
             },
             (registerIndex, value) -> DispatchSupport.writeMovemRegister(cpu, registerIndex, value)
         );
-        DispatchSupport.applyMovemWriteback(decoded.src(), cpu, startAddress, decoded.size(), registerCount);
         return cycles;
     }
 }

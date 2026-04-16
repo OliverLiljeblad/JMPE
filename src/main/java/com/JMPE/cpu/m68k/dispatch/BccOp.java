@@ -26,7 +26,7 @@ public final class BccOp implements Op {
             DispatchSupport.branchBase(cpu, decoded.size()),
             displacement.value(),
             DispatchSupport.conditionCodesReader(cpu),
-            cpu.registers()::setProgramCounter
+            DispatchSupport.controlTransferPcWriter(cpu)
         );
     }
 

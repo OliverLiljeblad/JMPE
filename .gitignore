@@ -12,6 +12,7 @@ target/
 
 # Logs
 *.log
+*.hprof
 
 # IDE files
 .idea/
@@ -25,9 +26,6 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
-
-# Working notes
-cleanup-context/
 
 # ROM and disk images
 roms/*

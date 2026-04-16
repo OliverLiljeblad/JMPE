@@ -9,4 +9,12 @@ public interface Group0Fault {
     int faultAddress();
 
     FaultAccessType accessType();
+
+    default boolean instructionAccess() {
+        return false;
+    }
+
+    default int savedProgramCounter(int defaultSavedProgramCounter) {
+        return defaultSavedProgramCounter;
+    }
 }

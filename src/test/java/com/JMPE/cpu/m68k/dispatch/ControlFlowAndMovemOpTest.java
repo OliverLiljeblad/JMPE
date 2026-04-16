@@ -12,6 +12,7 @@ import com.JMPE.cpu.m68k.EffectiveAddress;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.ChkException;
+import com.JMPE.cpu.m68k.exceptions.ProgramCounterAddressErrorException;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
 import com.JMPE.cpu.m68k.instructions.control.Link;
@@ -119,6 +120,16 @@ class ControlFlowAndMovemOpTest {
             () -> assertEquals(10, cycles),
             () -> assertEquals(0x2008, cpu.registers().programCounter())
         );
+    }
+
+    @Test
+    void braOpRejectsOddTargetAddress() {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x2002);
+
+        assertThrows(ProgramCounterAddressErrorException.class, () ->
+            new BraOp().execute(cpu, null, decoded(Opcode.BRA, Size.BYTE,
+                EffectiveAddress.immediate(-1), EffectiveAddress.none(), 0)));
     }
 
     @Test

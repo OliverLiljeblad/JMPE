@@ -125,7 +125,7 @@ class SystemTrapOpTest {
         cpu.registers().setUserStackPointer(0x0000_3000);
         cpu.registers().setSupervisorStackPointer(0x0000_2000);
         cpu.statusRegister().setRawValue(0x2700);
-        bus.writeWord(0x0000_2000, 0x0019);
+        bus.writeWord(0x0000_2000, 0x4A55);
         bus.writeLong(0x0000_2002, 0x0000_1235);
         bus.writeWord(0x0000_2006, 0x4A50);
         bus.writeWord(0x0000_2008, 0x0015);

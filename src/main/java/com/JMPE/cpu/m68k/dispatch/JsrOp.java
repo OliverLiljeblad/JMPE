@@ -22,6 +22,7 @@ public final class JsrOp implements Op {
 
         int returnAddress = cpu.registers().programCounter();
         int targetAddress = DispatchSupport.computeAddress(decoded.src(), cpu);
+        DispatchSupport.validateControlTransferTarget(targetAddress);
         return Jsr.execute(
             returnAddress,
             targetAddress,
