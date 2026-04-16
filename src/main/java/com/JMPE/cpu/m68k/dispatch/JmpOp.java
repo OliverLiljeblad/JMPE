@@ -20,6 +20,6 @@ public final class JmpOp implements Op {
         DispatchSupport.requireNoDestination(decoded, "JMP");
         DispatchSupport.requireNoExtension(decoded, "JMP");
 
-        return Jmp.execute(DispatchSupport.computeAddress(decoded.src(), cpu), cpu.registers()::setProgramCounter);
+        return Jmp.execute(DispatchSupport.computeAddress(decoded.src(), cpu), DispatchSupport.controlTransferPcWriter(cpu));
     }
 }

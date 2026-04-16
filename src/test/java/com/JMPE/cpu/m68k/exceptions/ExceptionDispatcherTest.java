@@ -76,7 +76,7 @@ class ExceptionDispatcherTest {
             () -> assertEquals(0x2005, cpu.statusRegister().rawValue()),
             () -> assertFalse(cpu.statusRegister().isTraceSet()),
             () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
-            () -> assertEquals(0x0019, bus.readWord(0x0000_1FF2)),
+            () -> assertEquals(0x4A51, bus.readWord(0x0000_1FF2)),
             () -> assertEquals(0x0000_1235, bus.readLong(0x0000_1FF4)),
             () -> assertEquals(0x4A50, bus.readWord(0x0000_1FF8)),
             () -> assertEquals(0x8005, bus.readWord(0x0000_1FFA)),

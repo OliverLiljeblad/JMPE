@@ -29,7 +29,7 @@ public final class BsrOp implements Op {
             displacement.value(),
             returnAddress,
             value -> DispatchSupport.pushLong(cpu, bus, value),
-            cpu.registers()::setProgramCounter
+            DispatchSupport.controlTransferPcWriter(cpu)
         );
     }
 

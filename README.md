@@ -91,6 +91,25 @@ If you have a local Mac Plus ROM outside the repository, you can run a bounded b
 If you prefer running Gradle directly, the test also accepts `-Djmpe.rom=/path/to/mac-plus.rom`
 and `-Djmpe.boot.steps=32`. ROM binaries are not committed to this repository.
 
+## Optional 68000 single-step conformance smoke tests
+If you clone `SingleStepTests/680x0` under `~/cpu-testdata/680x0`, the single-step smoke tests
+auto-detect `~/cpu-testdata/680x0/68000/v1` and run a bounded subset of the external corpus.
+You can also point at another checkout explicitly:
+
+```bash
+gradle --no-daemon test \
+  -Djmpe.680x0.enable=true \
+  -Djmpe.680x0.dir=/path/to/680x0/68000/v1 \
+  -Djmpe.680x0.cases=25 \
+  --tests 'com.JMPE.cpu.Singlestep_Add_Test' \
+  --tests 'com.JMPE.cpu.Singlestep_Move_Test' \
+  --tests 'com.JMPE.cpu.Singlestep_Branch_Test'
+```
+
+Use `-Djmpe.680x0.cases=all` to remove the per-file case cap. By default the harness compares
+architected final CPU state and RAM writes for each one-instruction case; add
+`-Djmpe.680x0.cycles=true` to also assert cycle counts.
+
 ## Project layout
 ```text
 src/main/java/com/JMPE/

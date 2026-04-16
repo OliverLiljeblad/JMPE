@@ -6,8 +6,8 @@ import com.JMPE.cpu.m68k.M68kCpu;
 import java.util.Objects;
 
 public final class ExceptionDispatcher {
-    private static final int GROUP0_INSTRUCTION_ACCESS = 0;
-    private static final int GROUP0_DATA_ACCESS = 0x08;
+    private static final int GROUP0_DATA_ACCESS = 0;
+    private static final int GROUP0_INSTRUCTION_ACCESS = 0x08;
     private static final int GROUP0_READ = 0x10;
     private static final int GROUP0_WRITE = 0;
     private static final int USER_DATA_FUNCTION_CODE = 0x01;
@@ -90,7 +90,7 @@ public final class ExceptionDispatcher {
         cpu.registers().setStackPointer(stackPointer);
         bus.writeWord(
             stackPointer,
-            buildGroup0StatusWord(fault.accessType(), instructionAccess, supervisorAccess)
+            buildGroup0StatusWord(instructionRegister, fault.accessType(), instructionAccess, supervisorAccess)
         );
 
         cpu.registers().setProgramCounter(bus.readLong(fault.exceptionVector().vectorAddress()));
@@ -146,17 +146,25 @@ public final class ExceptionDispatcher {
         cpu.recordExceptionFrame(ExceptionFrameKind.SIX_BYTE_SIMPLE);
     }
 
-    private static int buildGroup0StatusWord(FaultAccessType accessType,
+    private static int buildGroup0StatusWord(int instructionRegister,
+                                             FaultAccessType accessType,
+                                             boolean instructionAccess,
+                                             boolean supervisorAccess) {
+        return (instructionRegister & 0xFFE0)
+            | buildGroup0StatusBits(accessType, instructionAccess, supervisorAccess);
+    }
+
+    private static int buildGroup0StatusBits(FaultAccessType accessType,
                                              boolean instructionAccess,
                                              boolean supervisorAccess) {
         int readWrite = accessType == FaultAccessType.READ ? GROUP0_READ : GROUP0_WRITE;
-        int instructionNot = instructionAccess ? GROUP0_INSTRUCTION_ACCESS : GROUP0_DATA_ACCESS;
+        int instructionData = instructionAccess ? GROUP0_INSTRUCTION_ACCESS : GROUP0_DATA_ACCESS;
         int functionCode;
         if (supervisorAccess) {
             functionCode = instructionAccess ? SUPERVISOR_PROGRAM_FUNCTION_CODE : SUPERVISOR_DATA_FUNCTION_CODE;
         } else {
             functionCode = instructionAccess ? USER_PROGRAM_FUNCTION_CODE : USER_DATA_FUNCTION_CODE;
         }
-        return readWrite | instructionNot | functionCode;
+        return readWrite | instructionData | functionCode;
     }
 }

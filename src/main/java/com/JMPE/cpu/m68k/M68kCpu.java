@@ -188,13 +188,16 @@ public final class M68kCpu {
             throw exception;
         } catch (RuntimeException exception) {
             if (exception instanceof Group0Fault group0Fault) {
+                int savedProgramCounter = group0Fault.savedProgramCounter(
+                    savedGroup0ProgramCounter(before, group0AccessPhase)
+                );
                 ExceptionDispatcher.dispatchGroup0Fault(
                     this,
                     bus,
                     group0Fault,
-                    savedGroup0ProgramCounter(before, group0AccessPhase),
+                    savedProgramCounter,
                     opcodeFetched ? opword : 0,
-                    group0AccessPhase != Group0AccessPhase.EXECUTE,
+                    group0AccessPhase != Group0AccessPhase.EXECUTE || group0Fault.instructionAccess(),
                     isSupervisorSet(before.statusRegister())
                 );
                 if (!opcodeFetched && group0AccessPhase == Group0AccessPhase.OPCODE_FETCH) {
@@ -296,10 +299,7 @@ public final class M68kCpu {
     }
 
     private static int savedGroup0ProgramCounter(StepSnapshot before, Group0AccessPhase group0AccessPhase) {
-        return switch (group0AccessPhase) {
-            case OPCODE_FETCH -> before.programCounter();
-            case EXTENSION_FETCH, EXECUTE -> before.programCounter() + 2;
-        };
+        return before.programCounter();
     }
 
     private static boolean isSupervisorSet(int rawStatusRegister) {
