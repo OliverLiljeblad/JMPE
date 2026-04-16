@@ -9,6 +9,7 @@ import com.JMPE.bus.Rom;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
+import com.JMPE.devices.iwm.Iwm;
 import com.JMPE.devices.via.Via6522;
 import com.JMPE.util.RomLoader;
 
@@ -106,8 +107,15 @@ public final class MacPlusMachine {
         this.bus.addRegion(Mmio.openBus(SCSI_BASE, SCSI_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_READ_BASE, DEVICE_WINDOW_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_WRITE_BASE, DEVICE_WINDOW_SIZE));
-        this.bus.addRegion(Mmio.openBus(IWM_BASE, DEVICE_WINDOW_SIZE));
         this.bus.addRegion(viaMmio(via));
+
+        Iwm iwm = new Iwm();
+        this.bus.addRegion(Mmio.readWrite(IWM_BASE, DEVICE_WINDOW_SIZE,
+            iwm::access,    // read: latch line + return data
+            iwm::accessAndWrite
+        ));
+
+
         this.bus.addRegion(Mmio.openBus(OPEN_BUS_BASE, OPEN_BUS_SIZE));
         this.cpu.resetFromRom(rom);
     }
