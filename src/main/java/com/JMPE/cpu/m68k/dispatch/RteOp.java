@@ -42,7 +42,7 @@ public final class RteOp implements Op {
 
         cpu.registers().setSupervisorStackPointer(restoredSupervisorStackPointer);
         cpu.statusRegister().setRawValue(restoredStatusRegister);
-        cpu.registers().setProgramCounter(restoredProgramCounter);
+        DispatchSupport.controlTransferPcWriter(cpu).write(restoredProgramCounter);
         return EXECUTION_CYCLES;
     }
 }

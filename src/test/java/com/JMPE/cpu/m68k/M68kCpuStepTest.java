@@ -109,6 +109,7 @@ class M68kCpuStepTest {
     private static final int RESET = 0x4E70;
     private static final int STOP = 0x4E72;
     private static final int RTE = 0x4E73;
+    private static final int RTS = 0x4E75;
     private static final int TRAP_3 = 0x4E43;
     private static final int TRAPV = 0x4E76;
     private static final int RTR = 0x4E77;
@@ -135,6 +136,7 @@ class M68kCpuStepTest {
     private static final int GROUP0_FRAME_WORD_BSR_NEG1_SUPERVISOR_PROGRAM_READ = 0x61FE;
     private static final int GROUP0_FRAME_WORD_BSR_SUPERVISOR_PROGRAM_READ = 0x619E;
     private static final int GROUP0_FRAME_WORD_JSR_SUPERVISOR_PROGRAM_READ = 0x4E9E;
+    private static final int GROUP0_FRAME_WORD_RETURN_SUPERVISOR_PROGRAM_READ = 0x4E7E;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
     private static final int BCHG_D0_D1 = 0x0141;
     private static final int BTST_D0_D1 = 0x0101;
@@ -1594,6 +1596,98 @@ class M68kCpuStepTest {
         assertEquals(RtrOp.EXECUTION_CYCLES, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=RTR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddRteTargetAfterRestoringStatusRegister() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        int expectedFrameStart = TEST_SUPERVISOR_STACK_POINTER - 8;
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, RTE);
+        bus.writeWord(TEST_SUPERVISOR_STACK_POINTER, 0x2705);
+        bus.writeLong(TEST_SUPERVISOR_STACK_POINTER + 2, 0x0000_1235);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2705, cpu.statusRegister().rawValue());
+        assertEquals(expectedFrameStart, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_RETURN_SUPERVISOR_PROGRAM_READ, bus.readWord(expectedFrameStart));
+        assertEquals(0x0000_1235, bus.readLong(expectedFrameStart + 2));
+        assertEquals(RTE, bus.readWord(expectedFrameStart + 6));
+        assertEquals(0x2705, bus.readWord(expectedFrameStart + 8));
+        assertEquals(0x0000_1231, bus.readLong(expectedFrameStart + 10));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RTE"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddRtrTargetAfterRestoringConditionCodes() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2700);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        int expectedFrameStart = TEST_SUPERVISOR_STACK_POINTER - 8;
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, RTR);
+        bus.writeWord(TEST_SUPERVISOR_STACK_POINTER, 0x0015);
+        bus.writeLong(TEST_SUPERVISOR_STACK_POINTER + 2, 0x0000_1235);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2715, cpu.statusRegister().rawValue());
+        assertEquals(expectedFrameStart, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_RETURN_SUPERVISOR_PROGRAM_READ, bus.readWord(expectedFrameStart));
+        assertEquals(0x0000_1235, bus.readLong(expectedFrameStart + 2));
+        assertEquals(RTR, bus.readWord(expectedFrameStart + 6));
+        assertEquals(0x2715, bus.readWord(expectedFrameStart + 8));
+        assertEquals(0x0000_1231, bus.readLong(expectedFrameStart + 10));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RTR"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddRtsTargetAfterPoppingReturnAddress() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2705);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        int expectedFrameStart = TEST_SUPERVISOR_STACK_POINTER - 10;
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, RTS);
+        bus.writeLong(TEST_SUPERVISOR_STACK_POINTER, 0x0000_1235);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2705, cpu.statusRegister().rawValue());
+        assertEquals(expectedFrameStart, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_RETURN_SUPERVISOR_PROGRAM_READ, bus.readWord(expectedFrameStart));
+        assertEquals(0x0000_1235, bus.readLong(expectedFrameStart + 2));
+        assertEquals(RTS, bus.readWord(expectedFrameStart + 6));
+        assertEquals(0x2705, bus.readWord(expectedFrameStart + 8));
+        assertEquals(0x0000_1231, bus.readLong(expectedFrameStart + 10));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=RTS"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 

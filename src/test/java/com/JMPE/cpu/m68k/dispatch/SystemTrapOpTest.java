@@ -13,6 +13,7 @@ import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.exceptions.ExceptionFrameKind;
 import com.JMPE.cpu.m68k.exceptions.ExceptionVector;
+import com.JMPE.cpu.m68k.exceptions.ProgramCounterAddressErrorException;
 import com.JMPE.cpu.m68k.exceptions.PrivilegeViolation;
 import com.JMPE.cpu.m68k.instructions.DecodedInstruction;
 import com.JMPE.cpu.m68k.instructions.Opcode;
@@ -118,6 +119,27 @@ class SystemTrapOpTest {
     }
 
     @Test
+    void rteOpRejectsOddProgramCounterAfterRestoringStatusRegister() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setUserStackPointer(0x0000_3000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.statusRegister().setRawValue(0x2700);
+        bus.writeWord(0x0000_2000, 0x2705);
+        bus.writeLong(0x0000_2002, 0x0000_1235);
+
+        assertThrows(ProgramCounterAddressErrorException.class, () -> new RteOp().execute(cpu, bus, decoded(Opcode.RTE, 0)));
+
+        assertAll(
+            () -> assertEquals(0x0000_1000, cpu.registers().programCounter()),
+            () -> assertEquals(0x2705, cpu.statusRegister().rawValue()),
+            () -> assertEquals(0x0000_2006, cpu.registers().supervisorStackPointer()),
+            () -> assertEquals(0x0000_2006, cpu.registers().stackPointer())
+        );
+    }
+
+    @Test
     void rteOpRestoresGroup0ExceptionFrameAndReturnsToUserStack() {
         AddressSpace bus = flatRamBus();
         M68kCpu cpu = new M68kCpu();
@@ -156,6 +178,26 @@ class SystemTrapOpTest {
         assertAll(
             () -> assertEquals(RtrOp.EXECUTION_CYCLES, cycles),
             () -> assertEquals(0x0000_1234, cpu.registers().programCounter()),
+            () -> assertEquals(0x2715, cpu.statusRegister().rawValue()),
+            () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
+            () -> assertEquals(0x0000_2006, cpu.registers().supervisorStackPointer())
+        );
+    }
+
+    @Test
+    void rtrOpRejectsOddProgramCounterAfterRestoringConditionCodes() {
+        AddressSpace bus = flatRamBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setSupervisorStackPointer(0x0000_2000);
+        cpu.statusRegister().setRawValue(0x2700);
+        bus.writeWord(0x0000_2000, 0x0015);
+        bus.writeLong(0x0000_2002, 0x0000_1235);
+
+        assertThrows(ProgramCounterAddressErrorException.class, () -> new RtrOp().execute(cpu, bus, decoded(Opcode.RTR, 0)));
+
+        assertAll(
+            () -> assertEquals(0x0000_1000, cpu.registers().programCounter()),
             () -> assertEquals(0x2715, cpu.statusRegister().rawValue()),
             () -> assertTrue(cpu.statusRegister().isSupervisorSet()),
             () -> assertEquals(0x0000_2006, cpu.registers().supervisorStackPointer())
