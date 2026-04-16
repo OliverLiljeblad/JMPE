@@ -12,6 +12,7 @@ target/
 
 # Logs
 *.log
+*.hprof
 
 # IDE files
 .idea/

@@ -93,22 +93,44 @@ and `-Djmpe.boot.steps=32`. ROM binaries are not committed to this repository.
 
 ## Optional 68000 single-step conformance smoke tests
 If you clone `SingleStepTests/680x0` under `~/cpu-testdata/680x0`, the single-step smoke tests
-auto-detect `~/cpu-testdata/680x0/68000/v1` and run a bounded subset of the external corpus.
+auto-detect `~/cpu-testdata/680x0/68000/v1`. When enabled, `gradle test` now wires the full
+external `68000/v1` corpus through the focused add/move/branch suites plus sharded remaining-corpus suites.
 You can also point at another checkout explicitly:
 
 ```bash
+# Run the full external corpus with a bounded per-file sample
 gradle --no-daemon test \
   -Djmpe.680x0.enable=true \
   -Djmpe.680x0.dir=/path/to/680x0/68000/v1 \
+  -Djmpe.680x0.cases=25
+
+# Full-corpus runs disable Gradle XML/HTML reports by default to avoid heap blowups
+gradle --no-daemon test \
+  -Djmpe.680x0.enable=true \
+  -Djmpe.680x0.dir=/path/to/680x0/68000/v1 \
+  -Djmpe.680x0.cases=all
+
+# Or target one suite while debugging
+gradle --no-daemon test \
+  -Djmpe.680x0.enable=true \
+  -Djmpe.680x0.dir=/path/to/68000/v1 \
   -Djmpe.680x0.cases=25 \
-  --tests 'com.JMPE.cpu.Singlestep_Add_Test' \
-  --tests 'com.JMPE.cpu.Singlestep_Move_Test' \
-  --tests 'com.JMPE.cpu.Singlestep_Branch_Test'
+  --tests 'com.JMPE.cpu.Singlestep_Move_Test'
+
+# Or target one remaining-corpus shard while debugging the other upstream files
+gradle --no-daemon test \
+  -Djmpe.680x0.enable=true \
+  -Djmpe.680x0.dir=/path/to/68000/v1 \
+  -Djmpe.680x0.cases=25 \
+  --tests 'com.JMPE.cpu.Singlestep_Remaining_01_Test'
 ```
 
 Use `-Djmpe.680x0.cases=all` to remove the per-file case cap. By default the harness compares
 architected final CPU state and RAM writes for each one-instruction case; add
-`-Djmpe.680x0.cycles=true` to also assert cycle counts.
+`-Djmpe.680x0.cycles=true` to also assert cycle counts. Full `cases=all` runs now disable Gradle
+XML/HTML test reports by default to keep the test task from running out of heap while handling
+roughly one million dynamic cases; add `-Djmpe.680x0.reports=true` when you want report files for
+smaller targeted runs.
 
 ## Project layout
 ```text

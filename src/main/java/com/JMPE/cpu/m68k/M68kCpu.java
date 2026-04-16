@@ -189,7 +189,7 @@ public final class M68kCpu {
         } catch (RuntimeException exception) {
             if (exception instanceof Group0Fault group0Fault) {
                 int savedProgramCounter = group0Fault.savedProgramCounter(
-                    savedGroup0ProgramCounter(before, group0AccessPhase)
+                    savedGroup0ProgramCounter(before, registers.programCounter(), group0AccessPhase)
                 );
                 ExceptionDispatcher.dispatchGroup0Fault(
                     this,
@@ -298,8 +298,13 @@ public final class M68kCpu {
         return executeStepWithReport(instructionName, stepExecutor, System.out::println);
     }
 
-    private static int savedGroup0ProgramCounter(StepSnapshot before, Group0AccessPhase group0AccessPhase) {
-        return before.programCounter();
+    private static int savedGroup0ProgramCounter(StepSnapshot before,
+                                                 int currentProgramCounter,
+                                                 Group0AccessPhase group0AccessPhase) {
+        return switch (group0AccessPhase) {
+            case EXECUTE -> currentProgramCounter - Size.WORD.bytes();
+            default -> before.programCounter();
+        };
     }
 
     private static boolean isSupervisorSet(int rawStatusRegister) {

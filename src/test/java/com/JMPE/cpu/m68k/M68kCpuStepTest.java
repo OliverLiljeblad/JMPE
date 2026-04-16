@@ -93,6 +93,9 @@ class M68kCpuStepTest {
     private static final int EORI_TO_SR_INITIAL_SR = 0xA71F;
     private static final int EORI_TO_SR_RESULT_SR = 0x87EF;
     private static final int EORI_TO_SR_USER_MODE_SR = 0x071F;
+    private static final int MOVE_W_D16_A4_D0 = 0x302C;
+    private static final int MOVEM_L_REG_TO_MEM_D16_A2 = 0x48EA;
+    private static final int MOVEM_MASK_D0 = 0x0001;
     private static final int CMPI_B_D0 = 0x0C00;
     private static final int CMPI_BYTE_IMMEDIATE = 0x0001;
     private static final int CMPI_BYTE_INITIAL = 0x1234_5600;
@@ -113,6 +116,9 @@ class M68kCpuStepTest {
     private static final int MOVE_USP_TO_A3 = 0x4E6B;
     private static final int LINE_A_0123 = 0xA123;
     private static final int LINE_F_0234 = 0xF234;
+    private static final int BRA_DISP_NEG13 = 0x60F3;
+    private static final int BSR_DISP_NEG1 = 0x61FF;
+    private static final int BCC_HI_DISP_NEG1 = 0x62FF;
     private static final int BCC_MI_DISP_37 = 0x6D25;
     private static final int BSR_DISP_NEG125 = 0x6183;
     private static final int JSR_A0 = 0x4E90;
@@ -120,9 +126,13 @@ class M68kCpuStepTest {
     private static final int TEST_SUPERVISOR_STACK_POINTER = 0x0000_2000;
     private static final int GROUP0_FRAME_WORD_USER_PROGRAM_READ = 0x001A;
     private static final int GROUP0_FRAME_WORD_SUPERVISOR_PROGRAM_READ = 0x001E;
+    private static final int GROUP0_FRAME_WORD_MOVE_SUPERVISOR_DATA_READ = 0x3035;
+    private static final int GROUP0_FRAME_WORD_MOVEM_SUPERVISOR_DATA_WRITE = 0x48E5;
     private static final int GROUP0_FRAME_WORD_TST_USER_DATA_READ = 0x4A51;
     private static final int GROUP0_FRAME_WORD_TST_SUPERVISOR_DATA_READ = 0x4A55;
+    private static final int GROUP0_FRAME_WORD_BRA_SUPERVISOR_PROGRAM_READ = 0x60FE;
     private static final int GROUP0_FRAME_WORD_BCC_SUPERVISOR_PROGRAM_READ = 0x6D3E;
+    private static final int GROUP0_FRAME_WORD_BSR_NEG1_SUPERVISOR_PROGRAM_READ = 0x61FE;
     private static final int GROUP0_FRAME_WORD_BSR_SUPERVISOR_PROGRAM_READ = 0x619E;
     private static final int GROUP0_FRAME_WORD_JSR_SUPERVISOR_PROGRAM_READ = 0x4E9E;
     private static final int TST_NEGATIVE_BYTE = 0x0000_0080;
@@ -1802,6 +1812,68 @@ class M68kCpuStepTest {
     }
 
     @Test
+    void stepVectorsBusErrorForUnmappedDataReadAfterExtensionFetchUsingLastExtensionWordPc() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(4, 0x0000_5000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2703);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.BUS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, MOVE_W_D16_A4_D0);
+        bus.writeWord(0x0000_1002, 0x0000);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2703, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_MOVE_SUPERVISOR_DATA_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_5000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(MOVE_W_D16_A4_D0, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x2703, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVE"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsBusErrorForMovemWriteUsingLastExtensionWordPc() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        cpu.registers().setAddress(2, 0x0000_5000);
+        cpu.registers().setData(0, 0x1234_5678);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2705);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.BUS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, MOVEM_L_REG_TO_MEM_D16_A2);
+        bus.writeWord(0x0000_1002, MOVEM_MASK_D0);
+        bus.writeWord(0x0000_1004, 0x0000);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2705, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_MOVEM_SUPERVISOR_DATA_WRITE, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_5000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(MOVEM_L_REG_TO_MEM_D16_A2, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x2705, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_1004, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=MOVEM_REG_TO_MEM"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
     void stepVectorsAddressErrorForOddBccTarget() throws IllegalInstructionException {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setProgramCounter(0x0000_1000);
@@ -1826,6 +1898,85 @@ class M68kCpuStepTest {
         assertEquals(0x0000_1023, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=BCC"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForOddBraTarget() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2705);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, BRA_DISP_NEG13);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2705, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 14, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_BRA_SUPERVISOR_PROGRAM_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 14));
+        assertEquals(0x0000_0FF5, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(BRA_DISP_NEG13, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x2705, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
+        assertEquals(0x0000_0FF1, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BRA"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
+    }
+
+    @Test
+    void stepFallsThroughForUntakenBccWithNegativeOneByteDisplacement() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x271F);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        bus.writeWord(0x0000_1000, BCC_HI_DISP_NEG1);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(10, report.cycles());
+        assertEquals(0x0000_1002, cpu.registers().programCounter());
+        assertEquals(0x271F, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER, cpu.registers().supervisorStackPointer());
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BCC"));
+        assertTrue(logs.get(0).contains("pc=0x00001000->0x00001002"));
+    }
+
+    @Test
+    void stepVectorsAddressErrorForNegativeOneByteBsrTargetAfterPushingReturnAddress() throws IllegalInstructionException {
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setProgramCounter(0x0000_1000);
+        configureSplitStacks(cpu);
+        cpu.statusRegister().setRawValue(0x2707);
+        List<String> logs = new ArrayList<>();
+        AddressSpace bus = flatRamBus();
+        installVector(bus, ExceptionVector.ADDRESS_ERROR, 0x0000_1234);
+        bus.writeWord(0x0000_1000, BSR_DISP_NEG1);
+
+        M68kCpu.StepReport report = cpu.step(bus, new DispatchTable(), logs::add);
+
+        assertTrue(report.success());
+        assertEquals(0, report.cycles());
+        assertEquals(0x0000_1234, cpu.registers().programCounter());
+        assertEquals(0x2707, cpu.statusRegister().rawValue());
+        assertEquals(TEST_SUPERVISOR_STACK_POINTER - 18, cpu.registers().supervisorStackPointer());
+        assertEquals(GROUP0_FRAME_WORD_BSR_NEG1_SUPERVISOR_PROGRAM_READ, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 18));
+        assertEquals(0x0000_1001, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 16));
+        assertEquals(BSR_DISP_NEG1, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 12));
+        assertEquals(0x2707, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 10));
+        assertEquals(0x0000_0FFD, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 8));
+        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).contains("[m68k-step] OK op=BSR"));
         assertTrue(logs.get(0).contains("pc=0x00001000->0x00001234"));
     }
 

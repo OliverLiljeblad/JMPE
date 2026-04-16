@@ -25,9 +25,34 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
-    listOf("jmpe.rom", "jmpe.boot.steps", "jmpe.680x0.enable", "jmpe.680x0.dir", "jmpe.680x0.cases", "jmpe.680x0.cycles").forEach { key ->
+    listOf(
+        "jmpe.rom",
+        "jmpe.boot.steps",
+        "jmpe.680x0.enable",
+        "jmpe.680x0.dir",
+        "jmpe.680x0.cases",
+        "jmpe.680x0.cycles",
+        "jmpe.680x0.reports"
+    ).forEach { key ->
         System.getProperty(key)?.let { value ->
             systemProperty(key, value)
         }
+    }
+    val conformanceEnabled = System.getProperty("jmpe.680x0.enable")?.toBoolean() == true
+    val fullConformance = System.getProperty("jmpe.680x0.cases")
+        ?.trim()
+        ?.equals("all", ignoreCase = true) == true
+    val rawConformanceReports = System.getProperty("jmpe.680x0.reports")?.trim()
+    val conformanceReports = when {
+        rawConformanceReports == null || rawConformanceReports.isBlank() -> !fullConformance
+        rawConformanceReports.equals("true", ignoreCase = true) -> true
+        rawConformanceReports.equals("false", ignoreCase = true) -> false
+        else -> throw GradleException("jmpe.680x0.reports must be true or false")
+    }
+    if (conformanceEnabled) {
+        maxHeapSize = "2g"
+        forkEvery = 1
+        reports.html.required.set(conformanceReports)
+        reports.junitXml.required.set(conformanceReports)
     }
 }
