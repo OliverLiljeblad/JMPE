@@ -1511,7 +1511,10 @@ public final class Decoder {
 
         if (!directionToEa(op)) {
             if (mode == 0b001) {
-                throw new IllegalInstructionException(op, opwordAddr);
+                boolean addOrSub = (opcode == Opcode.ADD || opcode == Opcode.SUB);
+                if (!addOrSub && size == Size.BYTE) {
+                    throw new IllegalInstructionException(op, opwordAddr);
+                }
             }
             EffectiveAddress src = decodeEa(mode, reg, size, bus, cursor);
             return new DecodedInstruction(
