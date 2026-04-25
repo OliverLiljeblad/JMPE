@@ -1512,7 +1512,7 @@ public final class Decoder {
         if (!directionToEa(op)) {
             if (mode == 0b001) {
                 boolean addOrSub = (opcode == Opcode.ADD || opcode == Opcode.SUB);
-                if (!addOrSub && size == Size.BYTE) {
+                if (!addOrSub || size == Size.BYTE) {
                     throw new IllegalInstructionException(op, opwordAddr);
                 }
             }
