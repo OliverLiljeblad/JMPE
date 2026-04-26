@@ -5,19 +5,21 @@ public class Iwm {
     private int mode;
 
     boolean enabled;
+    boolean driveSelect;   // line 5: DRVSEL — drive 1 (false) vs drive 2 (true)
     boolean q6, q7;
 
     void accessLine(int line, boolean set) {
         switch (normalize(line)) {
             case 0, 1, 2, 3 -> { } // no-op for CA0, CA1, CA2, LSTRB
             case 4 -> enabled = set;
-            case 5 -> throw new UnsupportedOperationException();
+            case 5 -> driveSelect = set;
             case 6 -> q6 = set;
             case 7 -> q7 = set;
             default -> throw new IllegalArgumentException("Invalid IWM line: " + line);
         }
     }
 
+    //TODO: Complete implementation
     public int read() {
         String status = (q6 ? "6" : "_") + (q7 ? "7" : "_");
         return switch (status) {
@@ -26,13 +28,14 @@ public class Iwm {
         };
     }
 
+    //TODO: Complete implementation
     public void write(int value) {
         if (q6 && q7) {
             mode = normalize(value);
         }
     }
 
-    // Called by Mmio ByteReader — latch the addressed line, then return data
+    //NOTE: Called by Mmio ByteReader — latch the addressed line, then return data
     public int access(int offset) {
         int line = iwmLine(offset);
         accessLine(line >>> 1, (line & 1) != 0);

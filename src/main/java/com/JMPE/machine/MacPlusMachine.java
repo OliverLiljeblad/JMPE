@@ -2,14 +2,12 @@ package com.JMPE.machine;
 
 import com.JMPE.bus.*;
 import com.JMPE.cpu.m68k.M68kCpu;
-import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.devices.iwm.Iwm;
 import com.JMPE.devices.via.Via6522;
 import com.JMPE.devices.video.VideoController;
 import com.JMPE.util.RomLoader;
-import com.JMPE.util.Unit;
 
 import java.util.ArrayList;
 import java.util.List;
