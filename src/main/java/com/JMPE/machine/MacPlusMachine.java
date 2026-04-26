@@ -1,17 +1,15 @@
 package com.JMPE.machine;
 
-import com.JMPE.bus.AddressSpace;
-import com.JMPE.bus.Bus;
-import com.JMPE.bus.MemoryRegion;
-import com.JMPE.bus.Mmio;
-import com.JMPE.bus.OverlayMemoryRegion;
-import com.JMPE.bus.Rom;
+import com.JMPE.bus.*;
 import com.JMPE.cpu.m68k.M68kCpu;
+import com.JMPE.cpu.m68k.Size;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
 import com.JMPE.devices.iwm.Iwm;
 import com.JMPE.devices.via.Via6522;
+import com.JMPE.devices.video.VideoController;
 import com.JMPE.util.RomLoader;
+import com.JMPE.util.Unit;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,11 +35,16 @@ public final class MacPlusMachine {
     private static final int OPEN_BUS_SIZE = 0x000F_FFF0;
     private static final int VIA_OVERLAY_BIT = 4;
 
+    private final int MACHINE_WIDTH = 512;
+    private final int MACHINE_HEIGHT = 342;
+
     private final Rom rom;
     private final M68kCpu cpu;
     private final AddressSpace bus;
     private final DispatchTable dispatchTable;
     private final Interrupts interrupts;
+
+    private VideoController videoController;
 
     public MacPlusMachine(Rom rom) {
         this(rom, new M68kCpu(), false);
@@ -70,6 +73,8 @@ public final class MacPlusMachine {
         this.bus = new AddressSpace();
         this.dispatchTable = new DispatchTable();
 
+        Ram mainRam = null;
+
         MemoryRegion lowMemoryBacking = null;
         List<MemoryRegion> extraRegions = new ArrayList<>(additionalRegions.length);
         for (MemoryRegion region : additionalRegions) {
@@ -83,8 +88,16 @@ public final class MacPlusMachine {
                 lowMemoryBacking = region;
                 continue;
             }
+
+            //TODO: Probably take ram as an explicit constructor argument
+            if (region instanceof Ram ram) {
+                mainRam = ram;
+            }
+
             extraRegions.add(region);
         }
+
+        this.videoController = mainRam == null ? null : new VideoController(mainRam);
 
         OverlayMemoryRegion overlayRegion = lowMemoryBacking == null
             ? null
@@ -170,5 +183,17 @@ public final class MacPlusMachine {
             return new Rom(rom.base(), rom.copyBytes(), MAC_PLUS_ROM_APERTURE_SIZE);
         }
         return rom;
+    }
+
+    public int width() {
+        return MACHINE_WIDTH;
+    }
+
+    public int height() {
+        return MACHINE_HEIGHT;
+    }
+
+    public VideoController videoController() {
+        return videoController;
     }
 }
