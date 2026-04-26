@@ -20,6 +20,8 @@ public final class Via6522 {
     private static final int T1C_H = 5;
     private static final int T1L_L = 6;
     private static final int T1L_H = 7;
+    private static final int T2C_L = 8;
+    private static final int T2C_H = 9;
     private static final int ACR = 11;
     private static final int IFR = 13;
     private static final int IER = 14;
@@ -29,7 +31,9 @@ public final class Via6522 {
     private static final int IRQ_SUMMARY_FLAG = 0x80;
     private static final int CA1_INTERRUPT_FLAG = 0x02;
     private static final int T1_INTERRUPT_FLAG = 0x40;
+    private static final int T2_INTERRUPT_FLAG = 0x20;
     private static final int ACR_T1_FREE_RUN = 0x40;
+    private static final int ACR_T2_PB6_PULSE_COUNT = 0x20;
     // VIA is clocked at 1/10 of the 68000 system clock on the Mac Plus.
     private static final int VIA_CYCLES_PER_CPU_CYCLE = 10;
     // Mac Plus drives VIA CA1 from the video VBL signal at ~60.15 Hz. With a 7.8336 MHz CPU
@@ -53,6 +57,11 @@ public final class Via6522 {
     private int acr;
     private boolean t1ArmedForInterrupt;
     private int viaCycleAccumulator;
+    // T2 timer state. T2 is always one-shot in interval-timer mode (ACR bit 5 = 0). Pulse-counting
+    // (PB6) mode is recognised but does not currently advance the counter.
+    private int t2Counter = 0xFFFF;
+    private int t2LatchLowHolding;
+    private boolean t2ArmedForInterrupt;
     // CA1 (VBL) periodic assertion accumulator.
     private int ca1CycleAccumulator;
 
@@ -80,6 +89,12 @@ public final class Via6522 {
             case T1C_H -> (t1Counter >>> 8) & 0xFF;
             case T1L_L -> t1Latch & 0xFF;
             case T1L_H -> (t1Latch >>> 8) & 0xFF;
+            case T2C_L -> {
+                // Reading T2C-L clears the T2 interrupt flag.
+                clearT2InterruptFlag();
+                yield t2Counter & 0xFF;
+            }
+            case T2C_H -> (t2Counter >>> 8) & 0xFF;
             case ACR -> acr;
             case IFR -> readInterruptFlagRegister();
             case IER -> IER_SET_MASK | interruptEnable;
@@ -126,6 +141,16 @@ public final class Via6522 {
                 t1Latch = ((byteValue & 0xFF) << 8) | (t1LatchLowHolding & 0xFF);
                 clearT1InterruptFlag();
             }
+            case T2C_L -> {
+                // Latches the T2 low-order count (no interrupt clear, no transfer).
+                t2LatchLowHolding = byteValue;
+            }
+            case T2C_H -> {
+                // Loads the high-order counter, transfers the held low byte, clears T2 IFR, arms.
+                t2Counter = ((byteValue & 0xFF) << 8) | (t2LatchLowHolding & 0xFF);
+                clearT2InterruptFlag();
+                t2ArmedForInterrupt = true;
+            }
             case ACR -> {
                 acr = byteValue;
                 registers[ACR] = byteValue;
@@ -165,7 +190,7 @@ public final class Via6522 {
             int countToUnderflow = (t1Counter & 0xFFFF) + 1;
             if (remaining < countToUnderflow) {
                 t1Counter = (t1Counter - remaining) & 0xFFFF;
-                return;
+                break;
             }
             remaining -= countToUnderflow;
             if (t1ArmedForInterrupt) {
@@ -180,10 +205,35 @@ public final class Via6522 {
                 t1Counter = 0xFFFF;
             }
         }
+        // Decrement T2 (interval-timer mode only). Pulse-counting mode is not modelled and the
+        // counter is left alone, which is correct for code that doesn't toggle PB6.
+        if ((acr & ACR_T2_PB6_PULSE_COUNT) == 0) {
+            int t2Remaining = viaCycles;
+            while (t2Remaining > 0) {
+                int countToUnderflow = (t2Counter & 0xFFFF) + 1;
+                if (t2Remaining < countToUnderflow) {
+                    t2Counter = (t2Counter - t2Remaining) & 0xFFFF;
+                    break;
+                }
+                t2Remaining -= countToUnderflow;
+                if (t2ArmedForInterrupt) {
+                    interruptFlags |= T2_INTERRUPT_FLAG;
+                    registers[IFR] = interruptFlags;
+                    t2ArmedForInterrupt = false;
+                }
+                // T2 free-runs through 0xFFFF after underflow; it never reloads automatically.
+                t2Counter = 0xFFFF;
+            }
+        }
     }
 
     private void clearT1InterruptFlag() {
         interruptFlags &= ~T1_INTERRUPT_FLAG;
+        registers[IFR] = interruptFlags;
+    }
+
+    private void clearT2InterruptFlag() {
+        interruptFlags &= ~T2_INTERRUPT_FLAG;
         registers[IFR] = interruptFlags;
     }
 
@@ -194,9 +244,10 @@ public final class Via6522 {
     /** Diagnostic snapshot for boot bring-up. */
     public String debugState() {
         return String.format(
-            "VIA{IFR=0x%02X IER=0x%02X ACR=0x%02X T1ctr=0x%04X T1lat=0x%04X armed=%s}",
+            "VIA{IFR=0x%02X IER=0x%02X ACR=0x%02X T1ctr=0x%04X T1lat=0x%04X T2ctr=0x%04X t1=%s t2=%s}",
             interruptFlags & 0xFF, interruptEnable & 0xFF, acr & 0xFF,
-            t1Counter & 0xFFFF, t1Latch & 0xFFFF, t1ArmedForInterrupt);
+            t1Counter & 0xFFFF, t1Latch & 0xFFFF, t2Counter & 0xFFFF,
+            t1ArmedForInterrupt, t2ArmedForInterrupt);
     }
 
     private int readInterruptFlagRegister() {
