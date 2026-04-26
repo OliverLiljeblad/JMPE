@@ -127,6 +127,7 @@ public final class Via6522 {
         portAListener.accept(effectivePortA);
     }
 
+    //TODO: Does viaRegister need to be normalized?
     private static int viaRegister(int offset) {
         return (offset >>> 9) & 0x0F;
     }
