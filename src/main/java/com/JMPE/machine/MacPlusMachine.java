@@ -41,6 +41,7 @@ public final class MacPlusMachine {
     private final AddressSpace bus;
     private final DispatchTable dispatchTable;
     private final Interrupts interrupts;
+    private final Via6522 via;
 
     private VideoController videoController;
 
@@ -105,6 +106,7 @@ public final class MacPlusMachine {
                 overlayRegion.setOverlayEnabled(((portA >>> VIA_OVERLAY_BIT) & 1) != 0);
             }
         });
+        this.via = via;
         this.interrupts = () -> via.isIrqAsserted() ? 1 : 0;
 
         if (overlayRegion != null) {
@@ -165,15 +167,26 @@ public final class MacPlusMachine {
     }
 
     public M68kCpu.StepReport step() throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable, interrupts);
+        M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts);
+        via.tick(report.cycles());
+        return report;
     }
 
     public M68kCpu.StepReport step(Consumer<String> reporter) throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable, interrupts, reporter);
+        M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts, reporter);
+        via.tick(report.cycles());
+        return report;
+    }
+
+    /** Diagnostic accessor for boot bring-up. */
+    public Via6522 via() {
+        return via;
     }
 
     public M68kCpu.StepReport stepWithConsoleReport() throws IllegalInstructionException {
-        return cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
+        M68kCpu.StepReport report = cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
+        via.tick(report.cycles());
+        return report;
     }
 
     private static Rom mainRomRegion(Rom rom) {

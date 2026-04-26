@@ -27,18 +27,20 @@ class Via6522Test {
     }
 
     @Test
-    void interruptFlagRegisterSupportsReadPollClearAndRearm() {
+    void interruptFlagRegisterClearsCa1AndRearmsOnVblTick() {
         Via6522 via = new Via6522(ignored -> { });
 
         int initial = via.readRegister(IFR_OFFSET);
         via.writeRegister(IFR_OFFSET, 0x02);
         int afterClear = via.readRegister(IFR_OFFSET);
-        int afterRearm = via.readRegister(IFR_OFFSET);
+        // CA1 is the VBL input; one VBL period at the Mac Plus CPU clock is ~130235 cycles.
+        via.tick(130_235);
+        int afterVbl = via.readRegister(IFR_OFFSET);
 
         assertAll(
             () -> assertEquals(0x02, initial),
             () -> assertEquals(0x00, afterClear),
-            () -> assertEquals(0x02, afterRearm)
+            () -> assertEquals(0x02, afterVbl)
         );
     }
 
