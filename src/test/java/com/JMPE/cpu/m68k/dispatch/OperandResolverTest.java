@@ -329,19 +329,20 @@ class OperandResolverTest {
         }
 
         @Test
-        void postIncrementAppliedAtResolve() {
+        void postIncrementAppliedOnFirstAccess() {
             cpu.registers().setAddress(1, 0x0000_0200);
             bus.writeWord(0x200, 0x1234);
             OperandResolver.Location loc = OperandResolver.resolveLocation(
                     EffectiveAddress.addrRegIndPostInc(1), cpu, bus, Size.WORD);
 
-            // After resolveLocation, A1 should already be incremented (pre-committed)
-            assertEquals(0x0000_0202, cpu.registers().address(1));
+            // After resolveLocation, A1 should NOT yet be incremented; the post-increment
+            // only commits once a bus access succeeds (so a faulted access leaves An untouched).
+            assertEquals(0x0000_0200, cpu.registers().address(1));
             assertEquals(0x1234, loc.read());
-            // Still incremented after read
+            // Now incremented after the first successful access
             assertEquals(0x0000_0202, cpu.registers().address(1));
             loc.write(0x5678);
-            // A1 remains at incremented value
+            // A read-modify-write commits the post-increment exactly once
             assertEquals(0x0000_0202, cpu.registers().address(1));
             assertEquals(0x5678, bus.readWord(0x200));
         }
