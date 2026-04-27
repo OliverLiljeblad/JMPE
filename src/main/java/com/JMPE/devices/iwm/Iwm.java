@@ -8,9 +8,17 @@ public class Iwm {
     boolean driveSelect;   // line 5: DRVSEL — drive 1 (false) vs drive 2 (true)
     boolean q6, q7;
 
+    // Drive-control lines latched by the Sony driver to address a status
+    // register. CA2:CA1:CA0 (and externally-driven SEL on VIA PA4) form a
+    // 4-bit selector. LSTRB pulses to load step/seek commands.
+    boolean ca0, ca1, ca2, lstrb;
+
     void accessLine(int line, boolean set) {
         switch (normalize(line)) {
-            case 0, 1, 2, 3 -> { } // no-op for CA0, CA1, CA2, LSTRB
+            case 0 -> ca0 = set;
+            case 1 -> ca1 = set;
+            case 2 -> ca2 = set;
+            case 3 -> lstrb = set;
             case 4 -> enabled = set;
             case 5 -> driveSelect = set;
             case 6 -> q6 = set;
