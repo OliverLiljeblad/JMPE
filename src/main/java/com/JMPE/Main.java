@@ -10,8 +10,6 @@ import com.JMPE.util.RomLoader;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Main {
     private static final String DEFAULT_ROM_PATH = "src/test/java/com/JMPE/integration/roms/Mac-Plus.ROM";
@@ -30,39 +28,33 @@ public class Main {
             Ram ram = new Ram(RAM_BASE, RAM_SIZE);
             MacPlusMachine machine = MacPlusMachine.bootMachine(rom, ram);
 
-            int stepCount = 2_000_000;
-            int tailSize = 200;
-            java.util.ArrayDeque<String> tail = new java.util.ArrayDeque<>(tailSize + 1);
-            String[] last = new String[1];
-            java.util.function.Consumer<String> sink = msg -> {
-                last[0] = msg;
-                tail.addLast(msg);
-                if (tail.size() > tailSize) tail.removeFirst();
-            };
+            DesktopWindow window = new DesktopWindow("JMPE; Mac Plus Emulator", 512, 342, 2);
+            window.show();
 
-            int progressInterval = 250_000;
-            for (int step = 0; step < stepCount; step++) {
+            // Drive the CPU on its own thread; repaint the framebuffer at ~60 Hz
+            // from a Swing timer so we can watch the boot icon appear/blink.
+            Thread cpuThread = new Thread(() -> {
                 try {
-                    machine.step(sink);
-                    if (step > 0 && step % progressInterval == 0) {
-                        IO.println("step " + step + " pc=" + String.format("0x%08X",
-                            machine.cpu().registers().programCounter()));
+                    while (true) {
+                        machine.step();
                     }
-                } catch (IllegalInstructionException exception) {
-                    IO.println("HALT at step " + step
-                        + " pc=" + String.format("0x%08X", machine.cpu().registers().programCounter()));
-                    for (String s : tail) IO.println(s);
-                    throw new RuntimeException(exception);
+                } catch (IllegalInstructionException e) {
+                    IO.println("HALT pc=" + String.format("0x%08X",
+                        machine.cpu().registers().programCounter()));
                 }
-            }
-            IO.println("Completed " + stepCount + " steps successfully.");
-            IO.println("Final: " + last[0]);
+            }, "cpu");
+            cpuThread.setDaemon(true);
+            cpuThread.start();
+
+            javax.swing.Timer timer = new javax.swing.Timer(16, e -> {
+                if (machine.videoController() != null) {
+                    window.renderPanel().update(machine.videoController().getFrame());
+                }
+            });
+            timer.start();
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-//        DesktopWindow window = new DesktopWindow("JMPE; Mac Plus Emulator", 512, 342, 2);
-//        window.show();
     }
 }
