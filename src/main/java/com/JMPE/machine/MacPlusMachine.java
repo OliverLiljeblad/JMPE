@@ -42,6 +42,7 @@ public final class MacPlusMachine {
     private final DispatchTable dispatchTable;
     private final Interrupts interrupts;
     private final Via6522 via;
+    private final Iwm iwm;
 
     private VideoController videoController;
 
@@ -122,6 +123,8 @@ public final class MacPlusMachine {
         OverlayMemoryRegion overlayRegion = lowMemoryBacking == null
             ? null
             : new OverlayMemoryRegion(LOW_MEMORY_BASE, LOW_MEMORY_SIZE, rom, lowMemoryBacking, overlayEnabledAtReset);
+
+        this.iwm = new Iwm();
         Via6522 via = new Via6522(portA -> {
             if (overlayRegion != null) {
                 overlayRegion.setOverlayEnabled(((portA >>> VIA_OVERLAY_BIT) & 1) != 0);
@@ -142,7 +145,6 @@ public final class MacPlusMachine {
         this.bus.addRegion(Mmio.openBus(SCC_READ_BASE, DEVICE_WINDOW_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_WRITE_BASE, DEVICE_WINDOW_SIZE));
 
-        Iwm iwm = new Iwm();
         this.bus.addRegion(Mmio.readWrite(IWM_BASE, DEVICE_WINDOW_SIZE,
             iwm::access,    // read: latch line + return data
             iwm::accessAndWrite
@@ -204,6 +206,11 @@ public final class MacPlusMachine {
     /** Diagnostic accessor for boot bring-up. */
     public Via6522 via() {
         return via;
+    }
+
+    /** Diagnostic accessor for boot bring-up. */
+    public Iwm iwm() {
+        return iwm;
     }
 
     public M68kCpu.StepReport stepWithConsoleReport() throws IllegalInstructionException {

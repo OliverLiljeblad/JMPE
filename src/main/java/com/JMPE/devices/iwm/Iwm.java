@@ -12,6 +12,30 @@ public class Iwm {
     // register. CA2:CA1:CA0 (and externally-driven SEL on VIA PA4) form a
     // 4-bit selector. LSTRB pulses to load step/seek commands.
     boolean ca0, ca1, ca2, lstrb;
+    private boolean sel;
+
+    public void setSel(boolean sel) {
+        this.sel = sel;
+    }
+
+    /**
+     * Diagnostic hook fired after every memory-mapped IWM access. The state
+     * fields reflect the values latched by THIS access (i.e. accessed-after).
+     * {@code value} is the byte returned to the bus on a read, or the byte
+     * written by the CPU on a write.
+     */
+    @FunctionalInterface
+    public interface AccessListener {
+        void onAccess(int offset, boolean isWrite, int value,
+                      boolean sel, boolean ca0, boolean ca1, boolean ca2,
+                      boolean lstrb, boolean q6, boolean q7, boolean enabled);
+    }
+
+    private AccessListener accessListener;
+
+    public void setAccessListener(AccessListener listener) {
+        this.accessListener = listener;
+    }
 
     void accessLine(int line, boolean set) {
         switch (normalize(line)) {
@@ -85,7 +109,12 @@ public class Iwm {
     public int access(int offset) {
         int line = iwmLine(offset);
         accessLine(line >>> 1, (line & 1) != 0);
-        return read();
+        int value = read();
+        if (accessListener != null) {
+            accessListener.onAccess(offset, false, value,
+                sel, ca0, ca1, ca2, lstrb, q6, q7, enabled);
+        }
+        return value;
     }
 
     // Called by Mmio ByteWriter — latch the addressed line, then write data
@@ -93,6 +122,10 @@ public class Iwm {
         int line = iwmLine(offset);
         accessLine(line >>> 1, (line & 1) != 0);
         write(value);
+        if (accessListener != null) {
+            accessListener.onAccess(offset, true, value,
+                sel, ca0, ca1, ca2, lstrb, q6, q7, enabled);
+        }
     }
 
     private static int iwmLine(int offset) {
