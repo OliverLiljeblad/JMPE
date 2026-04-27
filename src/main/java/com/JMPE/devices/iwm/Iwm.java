@@ -61,7 +61,7 @@ public class Iwm {
             // Status register:
             //   bit 7    : SENSE — value of the drive line addressed by
             //              CA2:CA1:CA0 plus the externally-driven SEL on
-            //              VIA PA4 (which we don't yet route through here).
+            //              VIA PA4.
             //   bit 6    : 0 (MZ)
             //   bit 5    : ENABLE state
             //   bits 4-0 : mode register
@@ -73,7 +73,10 @@ public class Iwm {
             // for DrvQHdr.qHead ($030A) to become non-null.
             //
             // The Sony /DRVIN status (drive installed, active-low; 0=present)
-            // is the selector with CA2:CA1:CA0=1:1:1. For every other CA
+            // is the selector with CA2:CA1:CA0=1:1:1. Include SEL in the selector
+            // now that VIA PA4 is routed, but initially accept either SEL
+            // state as the installed-drive probe until drive-side selection is
+            // modeled more precisely. For every other CA
             // selector — /CSTIN (no disk inserted), /TKO (not at track 0),
             // /WRTPRT (not write-protected), etc. — we return SENSE=1
             // ("negated"), which the driver maps to "no/empty/idle".
@@ -81,7 +84,11 @@ public class Iwm {
             // This gives the driver a coherent picture of "one drive,
             // no disk" — exactly the state needed to fall through to the
             // flashing-? boot icon.
-            int sense = (ca2 && ca1 && ca0) ? 0 : 0x80;
+            int statusSelector = (sel ? 0b1000 : 0)
+                               | (ca2 ? 0b0100 : 0)
+                               | (ca1 ? 0b0010 : 0)
+                               | (ca0 ? 0b0001 : 0);
+            int sense = (statusSelector == 0b0111 || statusSelector == 0b1111) ? 0 : 0x80;
             return sense | (enabled ? 0x20 : 0) | normalize(mode);
         }
         if (q6 && q7) {

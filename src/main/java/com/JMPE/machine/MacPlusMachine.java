@@ -126,9 +126,14 @@ public final class MacPlusMachine {
 
         this.iwm = new Iwm();
         Via6522 via = new Via6522(portA -> {
+            //NOTE: The same PA4 value is used for overlay and IWM SEL
+            boolean pa4 = ((portA >>> VIA_OVERLAY_BIT) & 1) != 0;
+
             if (overlayRegion != null) {
-                overlayRegion.setOverlayEnabled(((portA >>> VIA_OVERLAY_BIT) & 1) != 0);
+                overlayRegion.setOverlayEnabled(pa4);
             }
+
+            iwm.setSel(pa4);
         });
         this.via = via;
         this.interrupts = () -> via.isIrqAsserted() ? 1 : 0;
