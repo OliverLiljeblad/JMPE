@@ -102,17 +102,16 @@ public final class MacPlusMachine {
             if (region == null) {
                 throw new IllegalArgumentException("additional region must not be null");
             }
+            //TODO: Probably take ram as an explicit constructor argument
+            if (region instanceof Ram ram) {
+                mainRam = ram;
+            }
             if (region.base() == LOW_MEMORY_BASE) {
                 if (lowMemoryBacking != null) {
                     throw new IllegalArgumentException("Only one low-memory backing region may start at address 0");
                 }
                 lowMemoryBacking = region;
                 continue;
-            }
-
-            //TODO: Probably take ram as an explicit constructor argument
-            if (region instanceof Ram ram) {
-                mainRam = ram;
             }
 
             extraRegions.add(region);
