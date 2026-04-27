@@ -35,19 +35,30 @@ public class Iwm {
         //   Q7=1,Q6=1 -> mode register read (returns mode in low 5 bits)
         if (q6 && !q7) {
             // Status register:
-            //   bit 7    : SENSE — state of the drive status line addressed
-            //              by CA2:CA1:CA0:SEL. We don't model an attached
-            //              drive, so always return 1 ("negated"). For every
-            //              Sony status line this means "no" — no disk in
-            //              place, no track zero, no drive installed, motor
-            //              off, idle, etc. The Sony driver interprets this
-            //              as "no drive / no disk" and posts a completion
-            //              with the appropriate error so its IOParam is no
-            //              longer left in-progress.
+            //   bit 7    : SENSE — value of the drive line addressed by
+            //              CA2:CA1:CA0 plus the externally-driven SEL on
+            //              VIA PA4 (which we don't yet route through here).
             //   bit 6    : 0 (MZ)
             //   bit 5    : ENABLE state
             //   bits 4-0 : mode register
-            return 0x80 | (enabled ? 0x20 : 0) | normalize(mode);
+            //
+            // We don't model an actual attached drive, but we DO need the
+            // Sony driver's drive-enumeration probe to find at least one
+            // "drive installed" so it adds an entry to DrvQHdr at $308.
+            // Without that, the boot at PC $004006E8 spins forever waiting
+            // for DrvQHdr.qHead ($030A) to become non-null.
+            //
+            // The Sony /DRVIN status (drive installed, active-low; 0=present)
+            // is the selector with CA2:CA1:CA0=1:1:1. For every other CA
+            // selector — /CSTIN (no disk inserted), /TKO (not at track 0),
+            // /WRTPRT (not write-protected), etc. — we return SENSE=1
+            // ("negated"), which the driver maps to "no/empty/idle".
+            //
+            // This gives the driver a coherent picture of "one drive,
+            // no disk" — exactly the state needed to fall through to the
+            // flashing-? boot icon.
+            int sense = (ca2 && ca1 && ca0) ? 0 : 0x80;
+            return sense | (enabled ? 0x20 : 0) | normalize(mode);
         }
         if (q6 && q7) {
             // Mode register read.
