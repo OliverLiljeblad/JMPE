@@ -1,5 +1,7 @@
 package com.JMPE.devices.via;
 
+import com.JMPE.devices.iwm.InterruptRequester;
+
 import java.util.Objects;
 import java.util.function.IntConsumer;
 
@@ -10,7 +12,7 @@ import java.util.function.IntConsumer;
  * writes and surface Port A bit 4 so the machine overlay can switch from ROM
  * to RAM.</p>
  */
-public final class Via6522 {
+public final class Via6522 implements InterruptRequester {
     private static final int REGISTER_COUNT = 16;
     private static final int ORB = 0;
     private static final int ORA = 1;
@@ -289,5 +291,10 @@ public final class Via6522 {
 
     private static int normalize(int register) {
         return register & 0x0F;
+    }
+
+    @Override
+    public void requestInterrupt() {
+        //TODO
     }
 }
