@@ -46,28 +46,6 @@ public final class MacPlusMachine {
 
     private VideoController videoController;
 
-    /*
-     * --- IOWait fast-fail (no-disk shim) ---
-     *
-     * Boot's synchronous I/O wait loop lives at PC=0x00402420:
-     *
-     *   0x00402420  MOVE.W (0x10,A0),D0    ; load ioResult
-     *   0x00402424  BGT.S  *-6             ; spin while > 0 (in-progress)
-     *
-     * The Sony driver normally completes the I/O via the IWM interrupt path
-     * once a sector is read. We don't model the IWM data channel, so the
-     * IOParam's ioResult stays at 1 forever. Until a real disk image is
-     * wired up, watch for this spin and inject a `noMediaErr` (-65) so the
-     * Start Manager can move on and paint the flashing-? icon.
-     */
-    private static final int IOWAIT_POLL_PC = 0x0040_2420;
-    private static final int IOWAIT_BRANCH_PC = 0x0040_2424;
-    private static final int IOWAIT_SPIN_THRESHOLD = 64;
-    private static final int IOWAIT_IORESULT_OFFSET = 0x10;
-    private static final int NO_MEDIA_ERR_W = 0xFFBF; // (short) -65
-    private int ioWaitSpinHits;
-    private int ioWaitSpinA0;
-
     public MacPlusMachine(Rom rom) {
         this(rom, new M68kCpu(), false);
     }
@@ -197,14 +175,12 @@ public final class MacPlusMachine {
     public M68kCpu.StepReport step() throws IllegalInstructionException {
         M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts);
         via.tick(report.cycles());
-        maybeBreakIoWaitSpin();
         return report;
     }
 
     public M68kCpu.StepReport step(Consumer<String> reporter) throws IllegalInstructionException {
         M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts, reporter);
         via.tick(report.cycles());
-        maybeBreakIoWaitSpin();
         return report;
     }
 
@@ -222,34 +198,6 @@ public final class MacPlusMachine {
         M68kCpu.StepReport report = cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
         via.tick(report.cycles());
         return report;
-    }
-
-    /**
-     * If the CPU has been spinning in the synchronous IOWait loop at
-     * {@code 0x00402420}, post a {@code noMediaErr} on the IOParam pointed
-     * to by A0 so the wait completes. Has no effect outside that PC.
-     */
-    private void maybeBreakIoWaitSpin() {
-        int pc = cpu.registers().programCounter();
-        if (pc != IOWAIT_POLL_PC && pc != IOWAIT_BRANCH_PC) {
-            ioWaitSpinHits = 0;
-            return;
-        }
-        int a0 = cpu.registers().address(0);
-        if (a0 != ioWaitSpinA0) {
-            ioWaitSpinA0 = a0;
-            ioWaitSpinHits = 1;
-            return;
-        }
-        if (++ioWaitSpinHits < IOWAIT_SPIN_THRESHOLD) {
-            return;
-        }
-        try {
-            bus.writeWord(a0 + IOWAIT_IORESULT_OFFSET, NO_MEDIA_ERR_W);
-        } catch (Exception ignored) {
-            // If A0 doesn't point at writable memory, leave the spin alone.
-        }
-        ioWaitSpinHits = 0;
     }
 
     private static Rom mainRomRegion(Rom rom) {
