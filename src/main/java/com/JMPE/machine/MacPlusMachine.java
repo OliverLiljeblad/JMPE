@@ -117,7 +117,7 @@ public final class MacPlusMachine {
             extraRegions.add(region);
         }
 
-        this.videoController = mainRam == null ? null : new VideoController(mainRam);
+        this.videoController = mainRam == null ? null : VideoController.tryCreate(mainRam);
 
         OverlayMemoryRegion overlayRegion = lowMemoryBacking == null
             ? null

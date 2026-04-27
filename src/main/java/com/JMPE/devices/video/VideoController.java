@@ -51,6 +51,19 @@ public class VideoController implements FrameProvider {
 
     }
 
+    /**
+     * Returns a {@link VideoController} for the given RAM, or {@code null} if
+     * the RAM size doesn't match any supported Mac Plus configuration. Used by
+     * test scaffolding that wires tiny RAM regions and doesn't need video.
+     */
+    public static VideoController tryCreate(Ram ram) {
+        try {
+            return new VideoController(ram);
+        } catch (IllegalArgumentException unsupportedSize) {
+            return null;
+        }
+    }
+
     private static Framebuffer1bpp[] createFrameBuffers(Ram ram, int mainAddress, int alternateAddress) {
         return new Framebuffer1bpp[]{
             new Framebuffer1bpp(ram, mainAddress),
