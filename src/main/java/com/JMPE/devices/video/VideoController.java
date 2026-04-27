@@ -46,7 +46,7 @@ public class VideoController implements FrameProvider {
             }
             default -> throw new IllegalArgumentException(
                 String.format("Video controller does not support RAM size <%d>. " +
-                    "Consider using 128k, 512k, 1MB, 2MB, 2.5MB, or 4MB RAM"));
+                    "Consider using 128k, 512k, 1MB, 2MB, 2.5MB, or 4MB RAM", ram.size()));
         }
 
     }
