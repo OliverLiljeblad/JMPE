@@ -27,20 +27,47 @@ public class Iwm {
         }
     }
 
-    //TODO: Complete implementation
     public int read() {
-        String status = (q6 ? "6" : "_") + (q7 ? "7" : "_");
-        return switch (status) {
-            case "6_" -> (enabled ? 0x20 : 0) | normalize(mode);
-            default -> 0;
-        };
+        // IWM register selection by Q6/Q7:
+        //   Q7=0,Q6=0 -> data register (read disk byte)
+        //   Q7=0,Q6=1 -> status register
+        //   Q7=1,Q6=0 -> write-handshake register
+        //   Q7=1,Q6=1 -> mode register read (returns mode in low 5 bits)
+        if (q6 && !q7) {
+            // Status register:
+            //   bit 7    : SENSE — state of the drive status line addressed
+            //              by CA2:CA1:CA0:SEL. We don't model an attached
+            //              drive, so always return 1 ("negated"). For every
+            //              Sony status line this means "no" — no disk in
+            //              place, no track zero, no drive installed, motor
+            //              off, idle, etc. The Sony driver interprets this
+            //              as "no drive / no disk" and posts a completion
+            //              with the appropriate error so its IOParam is no
+            //              longer left in-progress.
+            //   bit 6    : 0 (MZ)
+            //   bit 5    : ENABLE state
+            //   bits 4-0 : mode register
+            return 0x80 | (enabled ? 0x20 : 0) | normalize(mode);
+        }
+        if (q6 && q7) {
+            // Mode register read.
+            return normalize(mode);
+        }
+        if (!q6 && q7) {
+            // Write-handshake register: bit 7 = ready (1 = ready to accept
+            // another byte), bit 6 = underrun (0 = no underrun).
+            return 0xC0;
+        }
+        // Data register read: no drive, no disk -> return 0.
+        return 0;
     }
 
-    //TODO: Complete implementation
     public void write(int value) {
         if (q6 && q7) {
             mode = normalize(value);
         }
+        // Other write paths (data register, etc.) are no-ops while no drive
+        // is attached.
     }
 
     //NOTE: Called by Mmio ByteReader — latch the addressed line, then return data
