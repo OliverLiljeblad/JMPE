@@ -20,7 +20,7 @@ class EoriToSrOpTest {
         int cycles = new EoriToSrOp().execute(cpu, null, decodedEoriToSr(0x20F0));
 
         assertEquals(4, cycles);
-        assertEquals(0x87EF, cpu.statusRegister().rawValue());
+        assertEquals(0x870F, cpu.statusRegister().rawValue());
     }
 
     @Test

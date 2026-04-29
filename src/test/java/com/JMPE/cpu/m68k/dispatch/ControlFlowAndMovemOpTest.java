@@ -96,6 +96,24 @@ class ControlFlowAndMovemOpTest {
     }
 
     @Test
+    void rtsOpRejectsOddTargetAddressAfterPoppingReturnAddress() {
+        AddressSpace bus = stackAndCodeBus();
+        M68kCpu cpu = new M68kCpu();
+        cpu.registers().setStackPointer(0x1100);
+        cpu.registers().setProgramCounter(0x2004);
+        bus.writeLong(0x1100, 0x0000_2001);
+
+        assertThrows(ProgramCounterAddressErrorException.class, () ->
+            new RtsOp().execute(cpu, bus, decoded(Opcode.RTS, Size.UNSIZED,
+                EffectiveAddress.none(), EffectiveAddress.none(), 0)));
+
+        assertAll(
+            () -> assertEquals(0x1104, cpu.registers().stackPointer()),
+            () -> assertEquals(0x0000_2004, cpu.registers().programCounter())
+        );
+    }
+
+    @Test
     void jmpOpWritesProgramCounter() {
         M68kCpu cpu = new M68kCpu();
 

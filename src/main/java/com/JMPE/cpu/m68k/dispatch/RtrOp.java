@@ -27,7 +27,7 @@ public final class RtrOp implements Op {
         int restoredProgramCounter = bus.readLong(stackPointer + 2);
         cpu.registers().setStackPointer(stackPointer + 6);
         cpu.statusRegister().setConditionCodeRegister(restoredConditionCodes);
-        cpu.registers().setProgramCounter(restoredProgramCounter);
+        DispatchSupport.controlTransferPcWriter(cpu).write(restoredProgramCounter);
         return EXECUTION_CYCLES;
     }
 }

@@ -126,15 +126,24 @@ class DecoderPhaseTwoTest {
     @Test
     void decodesNegxNbcdNegAndSwapDataRegisterForms() throws IllegalInstructionException {
         DecodedInstruction negx = decoder.decode(0x4000, null, EXTENSION_PC);
+        DecodedInstruction moveFromSr = decoder.decode(0x40C0, null, EXTENSION_PC);
         DecodedInstruction nbcd = decoder.decode(0x4800, null, EXTENSION_PC);
         DecodedInstruction neg = decoder.decode(0x4400, null, EXTENSION_PC);
+        DecodedInstruction moveToCcr = decoder.decode(0x44C0, null, EXTENSION_PC);
         DecodedInstruction swap = decoder.decode(0x4841, null, EXTENSION_PC);
+        DecodedInstruction moveToSr = decoder.decode(0x46C0, null, EXTENSION_PC);
 
         assertEquals(Opcode.NEGX, negx.opcode());
         assertEquals(Size.BYTE, negx.size());
         assertEquals(EffectiveAddress.none(), negx.src());
         assertEquals(EffectiveAddress.dataReg(0), negx.dst());
         assertEquals(EXTENSION_PC, negx.nextPc());
+
+        assertEquals(Opcode.MOVE_FROM_SR, moveFromSr.opcode());
+        assertEquals(Size.WORD, moveFromSr.size());
+        assertEquals(EffectiveAddress.sr(), moveFromSr.src());
+        assertEquals(EffectiveAddress.dataReg(0), moveFromSr.dst());
+        assertEquals(EXTENSION_PC, moveFromSr.nextPc());
 
         assertEquals(Opcode.NBCD, nbcd.opcode());
         assertEquals(Size.BYTE, nbcd.size());
@@ -148,11 +157,23 @@ class DecoderPhaseTwoTest {
         assertEquals(EffectiveAddress.dataReg(0), neg.dst());
         assertEquals(EXTENSION_PC, neg.nextPc());
 
+        assertEquals(Opcode.MOVE_TO_CCR, moveToCcr.opcode());
+        assertEquals(Size.WORD, moveToCcr.size());
+        assertEquals(EffectiveAddress.dataReg(0), moveToCcr.src());
+        assertEquals(EffectiveAddress.ccr(), moveToCcr.dst());
+        assertEquals(EXTENSION_PC, moveToCcr.nextPc());
+
         assertEquals(Opcode.SWAP, swap.opcode());
         assertEquals(Size.LONG, swap.size());
         assertEquals(EffectiveAddress.none(), swap.src());
         assertEquals(EffectiveAddress.dataReg(1), swap.dst());
         assertEquals(EXTENSION_PC, swap.nextPc());
+
+        assertEquals(Opcode.MOVE_TO_SR, moveToSr.opcode());
+        assertEquals(Size.WORD, moveToSr.size());
+        assertEquals(EffectiveAddress.dataReg(0), moveToSr.src());
+        assertEquals(EffectiveAddress.sr(), moveToSr.dst());
+        assertEquals(EXTENSION_PC, moveToSr.nextPc());
     }
 
     @Test
