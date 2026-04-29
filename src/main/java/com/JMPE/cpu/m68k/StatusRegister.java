@@ -22,6 +22,8 @@ import com.JMPE.cpu.m68k.instructions.shift.Roxr;
  * implementations can reuse one precise source of truth.
  */
 public final class StatusRegister {
+    private static final int RAW_VALUE_MASK = 0xA71F;
+    private static final int CONDITION_CODE_MASK = 0x001F;
     private static final int CARRY_BIT = 0;
     private static final int OVERFLOW_BIT = 1;
     private static final int ZERO_BIT = 2;
@@ -39,21 +41,21 @@ public final class StatusRegister {
     private SupervisorModeListener supervisorModeListener;
 
     public int rawValue() {
-        return value & 0xFFFF;
+        return value & RAW_VALUE_MASK;
     }
 
     public void setRawValue(int rawValue) {
         boolean previousSupervisor = isSupervisorSet();
-        this.value = rawValue & 0xFFFF;
+        this.value = rawValue & RAW_VALUE_MASK;
         notifySupervisorModeChange(previousSupervisor);
     }
 
     public int conditionCodeRegister() {
-        return rawValue() & 0x1F;
+        return rawValue() & CONDITION_CODE_MASK;
     }
 
     public void setConditionCodeRegister(int ccr) {
-        value = (rawValue() & 0xFF00) | (ccr & 0x1F);
+        value = (rawValue() & ~CONDITION_CODE_MASK) | (ccr & CONDITION_CODE_MASK);
     }
 
     public int interruptMask() {
@@ -352,6 +354,16 @@ public final class StatusRegister {
         @Override
         public void clearZero() {
             StatusRegister.this.setZero(false);
+        }
+
+        @Override
+        public void setNegative(boolean value) {
+            StatusRegister.this.setNegative(value);
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            StatusRegister.this.setOverflow(value);
         }
 
         @Override

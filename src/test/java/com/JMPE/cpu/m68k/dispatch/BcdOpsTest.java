@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 
 class BcdOpsTest {
     @Test
-    void abcdOpAddsRegisterOperandsAndPreservesUndefinedFlags() {
+    void abcdOpAddsRegisterOperandsAndUpdates68000BcdFlags() {
         M68kCpu cpu = new M68kCpu();
         cpu.registers().setData(1, 0x0000_0055);
         cpu.registers().setData(2, 0x1234_0045);
@@ -33,9 +33,9 @@ class BcdOpsTest {
         assertAll(
             () -> assertEquals(Abcd.EXECUTION_CYCLES, cycles),
             () -> assertEquals(0x1234_0000, cpu.registers().data(2)),
-            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
+            () -> assertFalse(cpu.statusRegister().isNegativeSet()),
             () -> assertTrue(cpu.statusRegister().isZeroSet()),
-            () -> assertTrue(cpu.statusRegister().isOverflowSet()),
+            () -> assertFalse(cpu.statusRegister().isOverflowSet()),
             () -> assertTrue(cpu.statusRegister().isCarrySet()),
             () -> assertTrue(cpu.statusRegister().isExtendSet())
         );
@@ -84,7 +84,7 @@ class BcdOpsTest {
             () -> assertEquals(0x1234_0099, cpu.registers().data(2)),
             () -> assertTrue(cpu.statusRegister().isNegativeSet()),
             () -> assertFalse(cpu.statusRegister().isZeroSet()),
-            () -> assertTrue(cpu.statusRegister().isOverflowSet()),
+            () -> assertFalse(cpu.statusRegister().isOverflowSet()),
             () -> assertTrue(cpu.statusRegister().isCarrySet()),
             () -> assertTrue(cpu.statusRegister().isExtendSet())
         );
@@ -105,7 +105,7 @@ class BcdOpsTest {
             () -> assertEquals(0x1234_0099, cpu.registers().data(0)),
             () -> assertTrue(cpu.statusRegister().isNegativeSet()),
             () -> assertFalse(cpu.statusRegister().isZeroSet()),
-            () -> assertTrue(cpu.statusRegister().isOverflowSet()),
+            () -> assertFalse(cpu.statusRegister().isOverflowSet()),
             () -> assertTrue(cpu.statusRegister().isCarrySet()),
             () -> assertTrue(cpu.statusRegister().isExtendSet())
         );

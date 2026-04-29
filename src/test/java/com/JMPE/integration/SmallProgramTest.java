@@ -59,7 +59,7 @@ class SmallProgramTest {
     private static final int EORI_TO_SR = 0x0A7C;
     private static final int EORI_TO_SR_IMMEDIATE = 0x20F0;
     private static final int EORI_TO_SR_INITIAL_SR = 0xA71F;
-    private static final int EORI_TO_SR_RESULT_SR = 0x87EF;
+    private static final int EORI_TO_SR_RESULT_SR = 0x870F;
     private static final int EORI_TO_SR_USER_MODE_SR = 0x071F;
     private static final int CMPI_B_D0 = 0x0C00;
     private static final int CMPI_BYTE_IMMEDIATE = 0x0001;

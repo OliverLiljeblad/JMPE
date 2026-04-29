@@ -110,7 +110,7 @@ class MoveFamilyOpTest {
     }
 
     @Test
-    void moveFromSrOpCopiesWordAndUpdatesMoveFlags() {
+    void moveFromSrOpCopiesWordWithoutChangingStatusRegister() {
         M68kCpu cpu = new M68kCpu();
         cpu.statusRegister().setRawValue(0xA71F);
 
@@ -120,8 +120,7 @@ class MoveFamilyOpTest {
         assertAll(
             () -> assertEquals(4, cycles),
             () -> assertEquals(0x0000_A71F, cpu.registers().data(0)),
-            () -> assertTrue(cpu.statusRegister().isNegativeSet()),
-            () -> assertFalse(cpu.statusRegister().isZeroSet())
+            () -> assertEquals(0xA71F, cpu.statusRegister().rawValue())
         );
     }
 

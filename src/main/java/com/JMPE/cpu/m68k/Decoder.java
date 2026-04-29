@@ -717,28 +717,26 @@ public final class Decoder {
             }
 
             // ------------------------------------------------------------------
-            // Group 001: CLR (sz 00..10)  |  MOVE to CCR (sz = 11)
-            //
-            // MOVE to CCR is a WORD operation per the spec — the source is read
-            // as a word, but only the low byte is loaded into CCR.  The spec note
-            // also says: "MOVE to CCR is a word operation; ANDI/ORI/EORI to CCR
-            // are byte operations."  We emit Size.WORD accordingly.
+            // Group 001: CLR (all sized forms)
             // ------------------------------------------------------------------
             case 0b001 -> {
+                if (sz == 0b11) throw new IllegalInstructionException(op, opAddr);
+                yield decodeUnaryEa(Opcode.CLR, op, bus, cursor, opAddr);
+            }
+
+            // ------------------------------------------------------------------
+            // Group 010: NEG (sz 00..10)  |  MOVE to CCR (sz = 11)
+            //
+            // MOVE to CCR is a WORD operation per the spec — the source is read
+            // as a word, but only the low byte is loaded into CCR.
+            // ------------------------------------------------------------------
+            case 0b010 -> {
                 if (sz == 0b11) {
                     EffectiveAddress src = decodeEa(eaMode(op), regY(op), Size.WORD, bus, cursor);
                     yield new DecodedInstruction(
                         Opcode.MOVE_TO_CCR, Size.WORD,
                         src, EffectiveAddress.ccr(), 0, cursor[0]);
                 }
-                yield decodeUnaryEa(Opcode.CLR, op, bus, cursor, opAddr);
-            }
-
-            // ------------------------------------------------------------------
-            // Group 010: NEG (sz 00..10)  |  illegal (sz = 11)
-            // ------------------------------------------------------------------
-            case 0b010 -> {
-                if (sz == 0b11) throw new IllegalInstructionException(op, opAddr);
                 yield decodeUnaryEa(Opcode.NEG, op, bus, cursor, opAddr);
             }
 

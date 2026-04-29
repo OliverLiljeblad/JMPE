@@ -22,7 +22,7 @@ public final class RtsOp implements Op {
 
         return Rts.execute(
             () -> DispatchSupport.popLong(cpu, bus),
-            cpu.registers()::setProgramCounter
+            DispatchSupport.controlTransferPcWriter(cpu)
         );
     }
 }

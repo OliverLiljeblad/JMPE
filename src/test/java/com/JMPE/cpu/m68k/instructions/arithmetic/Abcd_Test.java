@@ -23,23 +23,44 @@ class Abcd_Test {
             () -> assertEquals(Abcd.EXECUTION_CYCLES, cycles),
             () -> assertEquals(0x00, writtenValue.get()),
             () -> assertFalse(conditionCodes.zeroCleared),
+            () -> assertFalse(conditionCodes.negative),
+            () -> assertFalse(conditionCodes.overflow),
             () -> assertTrue(conditionCodes.carry),
             () -> assertTrue(conditionCodes.extend)
         );
     }
 
     @Test
-    void executeClearsStickyZeroWhenResultIsNonZero() {
+    void executeClearsStickyZeroAndUses68000DecimalCorrectionForInvalidDigits() {
         AtomicInteger writtenValue = new AtomicInteger(-1);
         TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
 
-        Abcd.execute(Size.BYTE, () -> 0x01, () -> 0x02, writtenValue::set, false, conditionCodes);
+        Abcd.execute(Size.BYTE, () -> 0x5E, () -> 0x5E, writtenValue::set, false, conditionCodes);
 
         assertAll(
-            () -> assertEquals(0x03, writtenValue.get()),
+            () -> assertEquals(0x22, writtenValue.get()),
             () -> assertTrue(conditionCodes.zeroCleared),
-            () -> assertFalse(conditionCodes.carry),
-            () -> assertFalse(conditionCodes.extend)
+            () -> assertFalse(conditionCodes.negative),
+            () -> assertFalse(conditionCodes.overflow),
+            () -> assertTrue(conditionCodes.carry),
+            () -> assertTrue(conditionCodes.extend)
+        );
+    }
+
+    @Test
+    void executeSetsOverflowWhenDecimalCorrectionFlipsTheSignBit() {
+        AtomicInteger writtenValue = new AtomicInteger(-1);
+        TrackingConditionCodes conditionCodes = new TrackingConditionCodes();
+
+        Abcd.execute(Size.BYTE, () -> 0xB9, () -> 0x81, writtenValue::set, true, conditionCodes);
+
+        assertAll(
+            () -> assertEquals(0xA1, writtenValue.get()),
+            () -> assertTrue(conditionCodes.zeroCleared),
+            () -> assertTrue(conditionCodes.negative),
+            () -> assertTrue(conditionCodes.overflow),
+            () -> assertTrue(conditionCodes.carry),
+            () -> assertTrue(conditionCodes.extend)
         );
     }
 
@@ -64,12 +85,24 @@ class Abcd_Test {
 
     private static final class TrackingConditionCodes implements Abcd.ConditionCodes {
         private boolean zeroCleared;
+        private boolean negative;
+        private boolean overflow;
         private boolean carry;
         private boolean extend;
 
         @Override
         public void clearZero() {
             zeroCleared = true;
+        }
+
+        @Override
+        public void setNegative(boolean value) {
+            negative = value;
+        }
+
+        @Override
+        public void setOverflow(boolean value) {
+            overflow = value;
         }
 
         @Override

@@ -5,49 +5,47 @@ final class PackedBcd {
     }
 
     static Result add(int source, int destination, boolean extendSet) {
-        int low = lowDigit(destination) + lowDigit(source) + (extendSet ? 1 : 0);
-        int lowCarry = 0;
-        if (low >= 10) {
-            low -= 10;
-            lowCarry = 1;
+        int low = (source & 0x0F) + (destination & 0x0F) + (extendSet ? 1 : 0);
+        int high = (source & 0xF0) + (destination & 0xF0);
+        int corrected = (high + low) & 0xFFFF;
+        int uncorrected = corrected;
+
+        if (low > 9) {
+            corrected = (corrected + 0x06) & 0xFFFF;
         }
 
-        int high = highDigit(destination) + highDigit(source) + lowCarry;
-        boolean carry = false;
-        if (high >= 10) {
-            high -= 10;
-            carry = true;
+        boolean carry = (corrected & 0x3F0) > 0x90;
+        if (carry) {
+            corrected = (corrected + 0x60) & 0xFFFF;
         }
 
-        return new Result((high << 4) | low, carry);
+        int value = corrected & 0xFF;
+        boolean overflow = (uncorrected & 0x80) == 0 && (value & 0x80) != 0;
+        return new Result(value, carry, overflow);
     }
 
     static Result subtract(int source, int destination, boolean extendSet) {
-        int low = lowDigit(destination) - lowDigit(source) - (extendSet ? 1 : 0);
-        int lowBorrow = 0;
-        if (low < 0) {
-            low += 10;
-            lowBorrow = 1;
+        int low = ((destination & 0x0F) - (source & 0x0F) - (extendSet ? 1 : 0)) & 0xFFFF;
+        int high = ((destination & 0xF0) - (source & 0xF0)) & 0xFFFF;
+        int corrected = (high + low) & 0xFFFF;
+        int uncorrected = corrected;
+        int lowAdjust = 0;
+
+        if ((low & 0xF0) != 0) {
+            corrected = (corrected - 0x06) & 0xFFFF;
+            lowAdjust = 0x06;
         }
 
-        int high = highDigit(destination) - highDigit(source) - lowBorrow;
-        boolean borrow = false;
-        if (high < 0) {
-            high += 10;
-            borrow = true;
+        if ((((destination & 0xFF) - (source & 0xFF) - (extendSet ? 1 : 0)) & 0x100) != 0) {
+            corrected = (corrected - 0x60) & 0xFFFF;
         }
 
-        return new Result((high << 4) | low, borrow);
+        boolean carry = ((((destination & 0xFF) - (source & 0xFF) - lowAdjust - (extendSet ? 1 : 0)) & 0x300) > 0xFF);
+        int value = corrected & 0xFF;
+        boolean overflow = (uncorrected & 0x80) != 0 && (value & 0x80) == 0;
+        return new Result(value, carry, overflow);
     }
 
-    static int lowDigit(int value) {
-        return value & 0x0F;
-    }
-
-    static int highDigit(int value) {
-        return (value >>> 4) & 0x0F;
-    }
-
-    record Result(int value, boolean carry) {
+    record Result(int value, boolean carry, boolean overflow) {
     }
 }

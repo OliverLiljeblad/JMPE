@@ -95,6 +95,15 @@ class StatusRegisterTest {
     }
 
     @Test
+    void rawValueMasksReserved68000StatusBits() {
+        StatusRegister sr = new StatusRegister();
+
+        sr.setRawValue(0xFFFF);
+
+        assertEquals(0xA71F, sr.rawValue());
+    }
+
+    @Test
     void moveConditionCodesAdapterUpdatesNzvcWithoutTouchingX() {
         StatusRegister sr = new StatusRegister();
         sr.setExtend(true);
