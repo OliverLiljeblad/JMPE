@@ -1,16 +1,12 @@
 package com.JMPE.machine;
 
-import com.JMPE.bus.AddressSpace;
-import com.JMPE.bus.Bus;
-import com.JMPE.bus.MemoryRegion;
-import com.JMPE.bus.Mmio;
-import com.JMPE.bus.OverlayMemoryRegion;
-import com.JMPE.bus.Rom;
-import com.JMPE.bus.RomRegion;
+import com.JMPE.bus.*;
 import com.JMPE.cpu.m68k.M68kCpu;
 import com.JMPE.cpu.m68k.dispatch.DispatchTable;
 import com.JMPE.cpu.m68k.exceptions.IllegalInstructionException;
+import com.JMPE.devices.iwm.Iwm;
 import com.JMPE.devices.via.Via6522;
+import com.JMPE.devices.video.VideoController;
 import com.JMPE.util.RomLoader;
 
 import java.util.ArrayList;
@@ -37,11 +33,18 @@ public final class MacPlusMachine {
     private static final int OPEN_BUS_SIZE = 0x000F_FFF0;
     private static final int VIA_OVERLAY_BIT = 4;
 
+    private final int MACHINE_WIDTH = 512;
+    private final int MACHINE_HEIGHT = 342;
+
     private final Rom rom;
     private final M68kCpu cpu;
     private final AddressSpace bus;
     private final DispatchTable dispatchTable;
     private final Interrupts interrupts;
+    private final Via6522 via;
+    private final Iwm iwm;
+
+    private VideoController videoController;
 
     public MacPlusMachine(Rom rom) {
         this(rom, new M68kCpu(), false);
@@ -70,11 +73,17 @@ public final class MacPlusMachine {
         this.bus = new AddressSpace();
         this.dispatchTable = new DispatchTable();
 
+        Ram mainRam = null;
+
         MemoryRegion lowMemoryBacking = null;
         List<MemoryRegion> extraRegions = new ArrayList<>(additionalRegions.length);
         for (MemoryRegion region : additionalRegions) {
             if (region == null) {
                 throw new IllegalArgumentException("additional region must not be null");
+            }
+            //TODO: Probably take ram as an explicit constructor argument
+            if (region instanceof Ram ram) {
+                mainRam = ram;
             }
             if (region.base() == LOW_MEMORY_BASE) {
                 if (lowMemoryBacking != null) {
@@ -83,17 +92,28 @@ public final class MacPlusMachine {
                 lowMemoryBacking = region;
                 continue;
             }
+
             extraRegions.add(region);
         }
+
+        this.videoController = mainRam == null ? null : VideoController.tryCreate(mainRam);
 
         OverlayMemoryRegion overlayRegion = lowMemoryBacking == null
             ? null
             : new OverlayMemoryRegion(LOW_MEMORY_BASE, LOW_MEMORY_SIZE, rom, lowMemoryBacking, overlayEnabledAtReset);
+
+        this.iwm = new Iwm();
         Via6522 via = new Via6522(portA -> {
+            //NOTE: The same PA4 value is used for overlay and IWM SEL
+            boolean pa4 = ((portA >>> VIA_OVERLAY_BIT) & 1) != 0;
+
             if (overlayRegion != null) {
-                overlayRegion.setOverlayEnabled(((portA >>> VIA_OVERLAY_BIT) & 1) != 0);
+                overlayRegion.setOverlayEnabled(pa4);
             }
+
+            iwm.setSel(pa4);
         });
+        this.via = via;
         this.interrupts = () -> via.isIrqAsserted() ? 1 : 0;
 
         if (overlayRegion != null) {
@@ -107,8 +127,19 @@ public final class MacPlusMachine {
         this.bus.addRegion(Mmio.openBus(SCSI_BASE, SCSI_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_READ_BASE, DEVICE_WINDOW_SIZE));
         this.bus.addRegion(Mmio.openBus(SCC_WRITE_BASE, DEVICE_WINDOW_SIZE));
-        this.bus.addRegion(Mmio.openBus(IWM_BASE, DEVICE_WINDOW_SIZE));
-        this.bus.addRegion(viaMmio(via));
+
+        this.bus.addRegion(Mmio.readWrite(IWM_BASE, DEVICE_WINDOW_SIZE,
+            iwm::access,    // read: latch line + return data
+            iwm::accessAndWrite
+        ));
+
+        this.bus.addRegion(Mmio.readWrite(
+            VIA_BASE,
+            VIA_SIZE,
+            via::readRegister,
+            via::writeRegister
+        ));
+
         this.bus.addRegion(Mmio.openBus(OPEN_BUS_BASE, OPEN_BUS_SIZE));
         this.cpu.resetFromRom(rom);
     }
@@ -142,34 +173,49 @@ public final class MacPlusMachine {
     }
 
     public M68kCpu.StepReport step() throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable, interrupts);
+        M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts);
+        via.tick(report.cycles());
+        return report;
     }
 
     public M68kCpu.StepReport step(Consumer<String> reporter) throws IllegalInstructionException {
-        return cpu.step(bus, dispatchTable, interrupts, reporter);
+        M68kCpu.StepReport report = cpu.step(bus, dispatchTable, interrupts, reporter);
+        via.tick(report.cycles());
+        return report;
+    }
+
+    /** Diagnostic accessor for boot bring-up. */
+    public Via6522 via() {
+        return via;
+    }
+
+    /** Diagnostic accessor for boot bring-up. */
+    public Iwm iwm() {
+        return iwm;
     }
 
     public M68kCpu.StepReport stepWithConsoleReport() throws IllegalInstructionException {
-        return cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
+        M68kCpu.StepReport report = cpu.stepWithConsoleReport(bus, dispatchTable, interrupts);
+        via.tick(report.cycles());
+        return report;
     }
 
-    private static MemoryRegion mainRomRegion(Rom rom) {
-        if (rom.baseAddress() == MAC_PLUS_ROM_BASE) {
-            return new RomRegion(rom, MAC_PLUS_ROM_BASE, MAC_PLUS_ROM_APERTURE_SIZE);
+    private static Rom mainRomRegion(Rom rom) {
+        if (rom.base() == MAC_PLUS_ROM_BASE && rom.backingSize() < MAC_PLUS_ROM_APERTURE_SIZE) {
+            return new Rom(rom.base(), rom.copyBytes(), MAC_PLUS_ROM_APERTURE_SIZE);
         }
-        return new RomRegion(rom);
+        return rom;
     }
 
-    private static Mmio viaMmio(Via6522 via) {
-        return Mmio.readWrite(
-            VIA_BASE,
-            VIA_SIZE,
-            offset -> via.readRegister(viaRegister(offset)),
-            (offset, value) -> via.writeRegister(viaRegister(offset), value)
-        );
+    public int width() {
+        return MACHINE_WIDTH;
     }
 
-    private static int viaRegister(int offset) {
-        return (offset >>> 9) & 0x0F;
+    public int height() {
+        return MACHINE_HEIGHT;
+    }
+
+    public VideoController videoController() {
+        return videoController;
     }
 }

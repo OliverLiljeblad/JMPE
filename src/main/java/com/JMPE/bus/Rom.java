@@ -4,54 +4,77 @@ import java.util.Arrays;
 
 /**
  * Read-only memory region mapped into the emulator address space.
- * <p>
- * ROM bytes are immutable after construction so accidental writes fail fast.
+ *
+ * <p>All read/write methods accept <em>local offsets</em> from {@link #base()},
+ * honouring the {@link MemoryRegion} contract.  When the aperture is larger
+ * than the backing data (e.g. 128 KB ROM in a 1 MB address window) reads
+ * wrap naturally — mirroring the real chip behaviour where only the lower
+ * address lines are connected.
+ *
+ * <p>Writes are silent NOPs, matching real hardware where the ROM chip
+ * simply ignores write cycles (no write-enable signal).
  */
-public final class Rom {
+public final class Rom implements MemoryRegion {
     private static final int RESET_STACK_POINTER_OFFSET = 0;
     private static final int RESET_PROGRAM_COUNTER_OFFSET = 4;
     private static final int RESET_VECTOR_BYTES = 8;
 
-    private final int baseAddress;
+    private final int base;
     private final byte[] bytes;
+    private final int apertureSize;
 
-    public Rom(int baseAddress, byte[] bytes) {
+    public Rom(int base, byte[] bytes) {
+        this(base, bytes, bytes == null ? 0 : bytes.length);
+    }
+
+    public Rom(int base, byte[] bytes, int apertureSize) {
         if (bytes == null || bytes.length == 0) {
             throw new IllegalArgumentException("ROM bytes must not be null or empty");
         }
-        this.baseAddress = baseAddress;
+        if (apertureSize < bytes.length) {
+            throw new IllegalArgumentException("aperture must be at least as large as the backing data");
+        }
+        this.base = base;
         this.bytes = Arrays.copyOf(bytes, bytes.length);
+        this.apertureSize = apertureSize;
     }
 
-    public int baseAddress() {
-        return baseAddress;
+    @Override
+    public int base() {
+        return base;
     }
 
+    @Override
     public int size() {
+        return apertureSize;
+    }
+
+    public int backingSize() {
         return bytes.length;
     }
 
     public boolean contains(int address) {
-        long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
-        return offset >= 0 && offset < bytes.length;
+        long offset = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(base);
+        return offset >= 0 && offset < apertureSize;
     }
 
-    public int readByte(int address) {
-        return Byte.toUnsignedInt(bytes[offsetFor(address, 1)]);
+    @Override
+    public int readByte(int offset) {
+        return Byte.toUnsignedInt(bytes[offset % bytes.length]);
     }
 
-    public int readWord(int address) {
-        int offset = offsetFor(address, 2);
-        return (Byte.toUnsignedInt(bytes[offset]) << 8)
-            | Byte.toUnsignedInt(bytes[offset + 1]);
+    @Override
+    public int readWord(int offset) {
+        return (readByte(offset) << 8)
+            | readByte(offset + 1);
     }
 
-    public long readLong(int address) {
-        int offset = offsetFor(address, 4);
-        return ((long) Byte.toUnsignedInt(bytes[offset]) << 24)
-            | ((long) Byte.toUnsignedInt(bytes[offset + 1]) << 16)
-            | ((long) Byte.toUnsignedInt(bytes[offset + 2]) << 8)
-            | Byte.toUnsignedInt(bytes[offset + 3]);
+    @Override
+    public int readLong(int offset) {
+        return (readByte(offset) << 24)
+            | (readByte(offset + 1) << 16)
+            | (readByte(offset + 2) << 8)
+            | readByte(offset + 3);
     }
 
     /**
@@ -59,7 +82,7 @@ public final class Rom {
      */
     public int initialSupervisorStackPointer() {
         ensureHasResetVectors();
-        return (int) readLong(baseAddress + RESET_STACK_POINTER_OFFSET);
+        return readLong(RESET_STACK_POINTER_OFFSET);
     }
 
     /**
@@ -67,29 +90,20 @@ public final class Rom {
      */
     public int initialProgramCounter() {
         ensureHasResetVectors();
-        return (int) readLong(baseAddress + RESET_PROGRAM_COUNTER_OFFSET);
+        return readLong(RESET_PROGRAM_COUNTER_OFFSET);
     }
 
-    /**
-     * ROM is immutable by design; writes should be routed to RAM/MMIO regions instead.
-     */
-    public void writeByte(int address, int value) {
-        throw new UnsupportedOperationException(
-            "Cannot write to ROM at address 0x" + Integer.toHexString(address));
-    }
+    @Override
+    public void writeByte(int offset, int value) { /* ROM ignores writes */ }
+
+    @Override
+    public void writeWord(int offset, int value) { /* ROM ignores writes */ }
+
+    @Override
+    public void writeLong(int offset, int value) { /* ROM ignores writes */ }
 
     public byte[] copyBytes() {
         return Arrays.copyOf(bytes, bytes.length);
-    }
-
-    private int offsetFor(int address, int width) {
-        long start = Integer.toUnsignedLong(address) - Integer.toUnsignedLong(baseAddress);
-        long endExclusive = start + width;
-        if (start < 0 || endExclusive > bytes.length) {
-            throw new IndexOutOfBoundsException(
-                "ROM access out of bounds at address 0x" + Integer.toHexString(address));
-        }
-        return (int) start;
     }
 
     private void ensureHasResetVectors() {

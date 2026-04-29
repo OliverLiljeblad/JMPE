@@ -380,17 +380,34 @@ public final class M68kCpu {
         public String toLogLine() {
             String status = success ? "OK" : "ERR";
             String error = success ? "" : " error=\"" + (errorMessage == null ? "<no-message>" : errorMessage) + "\"";
-            return "[m68k-step] "
-                + status
-                + " op=" + instructionName
-                + " cycles=" + cycles
-                + " pc=" + formatHex(before.programCounter()) + "->" + formatHex(after.programCounter())
-                + " sr=" + formatWord(before.statusRegister()) + "(" + formatFlags(before.conditionCodeRegister()) + ")"
-                + "->" + formatWord(after.statusRegister()) + "(" + formatFlags(after.conditionCodeRegister()) + ")"
-                + " d0=" + formatHex(before.dataRegister(0)) + "->" + formatHex(after.dataRegister(0))
-                + " a7=" + formatHex(before.addressRegister(Registers.STACK_POINTER_REGISTER))
-                + "->" + formatHex(after.addressRegister(Registers.STACK_POINTER_REGISTER))
-                + error;
+            StringBuilder sb = new StringBuilder();
+            sb.append("[m68k-step] ")
+                .append(status)
+                .append(" op=").append(instructionName)
+                .append(" cycles=").append(cycles)
+                .append(" pc=").append(formatHex(before.programCounter())).append("->").append(formatHex(after.programCounter()))
+                .append(" sr=").append(formatWord(before.statusRegister()))
+                .append("(").append(formatFlags(before.conditionCodeRegister())).append(")")
+                .append("->").append(formatWord(after.statusRegister()))
+                .append("(").append(formatFlags(after.conditionCodeRegister())).append(")");
+
+            for (int i = 0; i < Registers.DATA_REGISTER_COUNT; i++) {
+                int bv = before.dataRegister(i);
+                int av = after.dataRegister(i);
+                if (bv != av) {
+                    sb.append(" d").append(i).append("=").append(formatHex(bv)).append("->").append(formatHex(av));
+                }
+            }
+            for (int i = 0; i < Registers.ADDRESS_REGISTER_COUNT; i++) {
+                int bv = before.addressRegister(i);
+                int av = after.addressRegister(i);
+                if (bv != av) {
+                    sb.append(" a").append(i).append("=").append(formatHex(bv)).append("->").append(formatHex(av));
+                }
+            }
+
+            sb.append(error);
+            return sb.toString();
         }
 
         private static String formatFlags(int ccr) {
