@@ -25,7 +25,12 @@ public final class MoveFromSrOp implements Op {
         try {
             DispatchSupport.writeDestination(decoded, cpu, bus, cpu.statusRegister().rawValue());
         } catch (AddressErrorException addressErrorException) {
-            throw new AddressErrorException(addressErrorException.address(), FaultAccessType.READ);
+            // Preserve MOVE_FROM_SR fault semantics as a READ while retaining the original
+            // exception as the cause for accurate stack traces and lower-level fault context.
+            AddressErrorException remappedAddressError =
+                    new AddressErrorException(addressErrorException.address(), FaultAccessType.READ);
+            remappedAddressError.initCause(addressErrorException);
+            throw remappedAddressError;
         }
         return DispatchSupport.moveCycles();
     }
