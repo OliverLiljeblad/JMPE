@@ -42,14 +42,17 @@ public class Movem_Test {
     }
 
     @Test
-    void executeRegistersToMemory_writesA7ThenA6ForBit0AndBit1InPredecrementMode() {
+    void executeRegistersToMemory_storesA6ThenA7InPredecrementMemoryOrder() {
         int[] registers = new int[16];
-        registers[15] = 0xAAAA;  // A7 → predecrement bit 0 maps here
-        registers[14] = 0xBBBB;  // A6 → predecrement bit 1 maps here
+        registers[15] = 0xAAAA;  // A7
+        registers[14] = 0xBBBB;  // A6
 
         List<Integer> writtenValues = new ArrayList<>();
 
-        // mask = 0x0003: bits 0 and 1 → PREDECREMENT_ORDER[0]=A7, PREDECREMENT_ORDER[1]=A6.
+        // mask = 0x0003 (predecrement encoding): bits 0,1 set → A7 and A6 included.
+        // On the 68000 the stored block is laid out D0..D7,A0..A7 from low to high
+        // address regardless of mode, so A6 (lower-numbered) is written first
+        // (lowest address), then A7.
         Movem.executeRegistersToMemory(
                 Size.WORD,
                 Movem.AddressingMode.PREDECREMENT,
@@ -60,7 +63,7 @@ public class Movem_Test {
                 (address, size, value) -> writtenValues.add(value)
         );
 
-        assertEquals(List.of(0xAAAA, 0xBBBB), writtenValues);
+        assertEquals(List.of(0xBBBB, 0xAAAA), writtenValues);
     }
 
     @Test

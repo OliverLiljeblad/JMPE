@@ -142,7 +142,14 @@ public final class ExceptionDispatcher {
         cpu.registers().setStackPointer(stackPointer);
         bus.writeWord(stackPointer, savedStatusRegister);
 
-        cpu.registers().setProgramCounter(bus.readLong(vectorNumber * 4));
+        int handlerAddress = bus.readLong(vectorNumber * 4);
+        if (handlerAddress == 0) {
+            throw new RuntimeException("Vector " + vectorNumber
+                + " (offset 0x" + Integer.toHexString(vectorNumber * 4)
+                + ") is uninitialized — would jump to PC=0");
+        }
+
+        cpu.registers().setProgramCounter(handlerAddress);
         cpu.recordExceptionFrame(ExceptionFrameKind.SIX_BYTE_SIMPLE);
     }
 

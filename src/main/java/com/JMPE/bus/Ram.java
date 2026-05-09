@@ -45,7 +45,7 @@ public final class Ram implements MemoryRegion {
 
     @Override
     public int readWord(int offset) {
-        return ((data[offset]     & 0xFF) << 8)
+        return ((data[offset]    & 0xFF) << 8)
             |  (data[offset + 1] & 0xFF);
     }
 

@@ -52,7 +52,7 @@ public final class OverlayMemoryRegion implements MemoryRegion {
     @Override
     public int readByte(int offset) {
         if (overlayEnabled) {
-            return rom.readByte(romAddress(offset));
+            return rom.readByte(offset);
         }
         return backing.readByte(backingOffset(offset));
     }
@@ -90,10 +90,6 @@ public final class OverlayMemoryRegion implements MemoryRegion {
         writeByte(offset + 1, value >>> 16);
         writeByte(offset + 2, value >>> 8);
         writeByte(offset + 3, value);
-    }
-
-    private int romAddress(int offset) {
-        return rom.baseAddress() + wrap(offset, rom.size());
     }
 
     private int backingOffset(int offset) {

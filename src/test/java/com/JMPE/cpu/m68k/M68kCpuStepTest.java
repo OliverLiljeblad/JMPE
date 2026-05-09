@@ -1543,7 +1543,9 @@ class M68kCpuStepTest {
         assertEquals(0x2015, cpu.statusRegister().rawValue());
         assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
         assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
-        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        // Per M68000 PRM §6.3.6, Line A/F save the address of the trapping
+        // opword itself (0x1000), not the next instruction (0x1002).
+        assertEquals(0x0000_1000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(LineATrapOp.EXECUTION_CYCLES, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=LINE_A_TRAP"));
@@ -1568,7 +1570,9 @@ class M68kCpuStepTest {
         assertEquals(0x2015, cpu.statusRegister().rawValue());
         assertEquals(TEST_SUPERVISOR_STACK_POINTER - 6, cpu.registers().supervisorStackPointer());
         assertEquals(0x0015, bus.readWord(TEST_SUPERVISOR_STACK_POINTER - 6));
-        assertEquals(0x0000_1002, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
+        // Per M68000 PRM §6.3.6, Line A/F save the address of the trapping
+        // opword itself (0x1000), not the next instruction (0x1002).
+        assertEquals(0x0000_1000, bus.readLong(TEST_SUPERVISOR_STACK_POINTER - 4));
         assertEquals(LineFTrapOp.EXECUTION_CYCLES, report.cycles());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[m68k-step] OK op=LINE_F_TRAP"));

@@ -110,7 +110,7 @@ class SmallProgramTest {
         MacPlusMachine machine = MacPlusMachine.fromRomBytes(romBytesWithSingleInstruction(NOP), ROM_BASE);
 
         System.out.printf("[machine-nop-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-nop-trace] reset ssp=0x%08X pc=0x%08X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter());
@@ -160,7 +160,7 @@ class SmallProgramTest {
         configureClrScenario(machine.cpu());
 
         System.out.printf("[machine-clr-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-clr-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -230,7 +230,7 @@ class SmallProgramTest {
         configureNotScenario(machine.cpu());
 
         System.out.printf("[machine-not-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-not-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -306,7 +306,7 @@ class SmallProgramTest {
         configureAndiScenario(machine.cpu());
 
         System.out.printf("[machine-andi-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-andi-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -453,7 +453,7 @@ class SmallProgramTest {
         configureOriScenario(machine.cpu());
 
         System.out.printf("[machine-ori-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-ori-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -529,7 +529,7 @@ class SmallProgramTest {
         configureEoriScenario(machine.cpu());
 
         System.out.printf("[machine-eori-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-eori-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -676,7 +676,7 @@ class SmallProgramTest {
         configureCmpiScenario(machine.cpu());
 
         System.out.printf("[machine-cmpi-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-cmpi-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -744,7 +744,7 @@ class SmallProgramTest {
         configureTstScenario(machine.cpu());
 
         System.out.printf("[machine-tst-trace] machine romBase=0x%08X bus=%s%n",
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-tst-trace] reset ssp=0x%08X pc=0x%08X d0=0x%08X sr=0x%04X%n",
             machine.cpu().registers().stackPointer(),
             machine.cpu().registers().programCounter(),
@@ -936,7 +936,7 @@ class SmallProgramTest {
 
         System.out.printf("[machine-ten-step-trace] start steps=%d romBase=0x%08X bus=%s%n",
             TEN_INSTRUCTION_PROGRAM_STEP_COUNT,
-            machine.rom().baseAddress(), machine.bus().getClass().getSimpleName());
+            machine.rom().base(), machine.bus().getClass().getSimpleName());
         System.out.printf("[machine-ten-step-trace] initial ssp=%s pc=%s d0=%s sr=%s flags=%s%n",
             formatHex(machine.cpu().registers().stackPointer()),
             formatHex(machine.cpu().registers().programCounter()),

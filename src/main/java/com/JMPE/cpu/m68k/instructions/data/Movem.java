@@ -74,7 +74,14 @@ public final class Movem {
         int[] registerOrder = addressingMode == AddressingMode.PREDECREMENT ? PREDECREMENT_ORDER : FORWARD_ORDER;
         int normalizedMask = registerMask & VALID_MASK;
         int address = startAddress;
-        for (int bitIndex = 0; bitIndex < registerOrder.length; bitIndex++) {
+        // For predecrement we walk bitIndex from high to low so that storage proceeds in
+        // canonical D0..D7,A0..A7 order from the lowest stored address upward, matching
+        // what a postincrement MOVEM_MEM_TO_REG (the natural pop counterpart) expects.
+        boolean reverseIteration = addressingMode == AddressingMode.PREDECREMENT;
+        int start = reverseIteration ? registerOrder.length - 1 : 0;
+        int end = reverseIteration ? -1 : registerOrder.length;
+        int stride = reverseIteration ? -1 : 1;
+        for (int bitIndex = start; bitIndex != end; bitIndex += stride) {
             if (((normalizedMask >>> bitIndex) & 1) == 0) {
                 continue;
             }

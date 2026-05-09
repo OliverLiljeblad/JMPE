@@ -23,6 +23,11 @@ public final class LineFTrapOp implements Op {
         DispatchSupport.requireNoSource(decoded, "LINE_F_TRAP");
         DispatchSupport.requireNoDestination(decoded, "LINE_F_TRAP");
 
+        // Per M68000 PRM §6.3.6, the saved PC for unimplemented-instruction
+        // exceptions (Line A / Line F) must be the address of the trapping
+        // opword itself, not the next instruction. M68kCpu.step() advances PC
+        // past the opword before dispatch, so rewind by 2 here.
+        cpu.registers().setProgramCounter(cpu.registers().programCounter() - 2);
         ExceptionDispatcher.dispatchSimpleVector(cpu, bus, ExceptionVector.LINE_F_TRAP);
         return EXECUTION_CYCLES;
     }

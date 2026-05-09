@@ -76,8 +76,10 @@ public final class OperandResolver {
 
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
+                // Bus access first: if it faults (e.g. odd address), An must NOT be updated.
+                int value = busRead(bus, addr, size);
                 regs.setAddress(reg, addr + increment(reg, size));
-                yield busRead(bus, addr, size);
+                yield value;
             }
 
             case EffectiveAddress.AddrRegIndPreDec(int reg) -> {
@@ -146,8 +148,9 @@ public final class OperandResolver {
 
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
-                regs.setAddress(reg, addr + increment(reg, size));
+                // Bus access first: if it faults (e.g. odd address), An must NOT be updated.
                 busWrite(bus, addr, size, value);
+                regs.setAddress(reg, addr + increment(reg, size));
             }
 
             case EffectiveAddress.AddrRegIndPreDec(int reg) -> {
@@ -226,11 +229,24 @@ public final class OperandResolver {
             case EffectiveAddress.AddrRegIndPostInc(int reg) -> {
                 int addr = regs.address(reg);
                 int inc = increment(reg, size);
-                regs.setAddress(reg, addr + inc);
+                // Commit the post-increment exactly once: on the first successful bus access
+                // (read for RMW or write for write-only). If the access faults, An is not updated.
+                final boolean[] committed = {false};
                 yield new Location() {
-                    @Override public int read() { return busRead(bus, addr, size); }
+                    private void commitOnce() {
+                        if (!committed[0]) {
+                            regs.setAddress(reg, addr + inc);
+                            committed[0] = true;
+                        }
+                    }
+                    @Override public int read() {
+                        int value = busRead(bus, addr, size);
+                        commitOnce();
+                        return value;
+                    }
                     @Override public void write(int value) {
                         busWrite(bus, addr, size, value);
+                        commitOnce();
                     }
                 };
             }
